@@ -1,2 +1,2 @@
-# Unsupervised_cell_and_spot_segmentation
+# Unsupervised cell and spot segmentation
 Experiments to segment cell and spot images without labels.

@@ -1,0 +1,140 @@
+#!/usr/bin/python3.6
+# -*- coding: utf-8 -*-
+import argparse
+import os
+
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+os.environ["TF_XLA_FLAGS"] = "--tf_xla_cpu_global_jit"
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+# loglevel : 0 all printed, 1 I not printed, 2 I and W not printed, 3 nothing printed
+
+import tensorflow as tf
+import tensorflow.keras.optimizers as optimizers
+import models.wnet as wnet
+import utils.data as data
+import utils.utils as utils
+import tensorflow.keras as keras
+import numpy as np
+import skimage.io as io
+import models.losses as losses
+import matplotlib.pyplot as plt
+
+PATH_SAVE = "./wnet.h5"
+BEST_LOSS = 9999999999999999999999999999999999999999
+
+
+def loss(gen, wnet, image, wei, loss1, loss2, size):
+    pred = gen(image)
+    gen_loss = tf.abs(loss1(pred, wei))  # todo : ici abs pas dans le papier, neg value
+    output = wnet(image)
+    wnet_loss = size**2 * tf.cast(loss2(keras.backend.flatten(image), keras.backend.flatten(output)),
+                               dtype=tf.double)
+    # print("gen loss : {} \t reconstruction loss : {}".format(gen_loss, wnet_loss))
+    return gen_loss, wnet_loss
+
+
+def grad(gen, wnet, image, wei, loss1, loss2, opt):
+    with tf.GradientTape() as gen_tape, tf.GradientTape() as wnet_tape:
+        gen_loss, wnet_loss = loss(gen, wnet, image, wei, loss1, loss2, opt.size)
+    return gen_loss, wnet_loss, gen_tape.gradient(gen_loss, gen.trainable_variables), wnet_tape.gradient(wnet_loss,
+                                                                                                         wnet.trainable_variables)
+
+
+def get_checkpoint(gen_opti, wnet_opti, gen, model_wnet):  # todo : use this
+    checkpoint_dir = './saved_models'
+    checkpoint_prefix = os.path.join(checkpoint_dir, "ckpt")
+    checkpoint = tf.train.Checkpoint(generator_optimizer=gen_opti,
+                                     wnet_optimizer=wnet_opti,
+                                     generator=gen,
+                                     wnet=model_wnet)
+    return checkpoint, checkpoint_prefix
+
+
+def save(model, loss):
+    global BEST_LOSS
+    if loss < BEST_LOSS:
+        utils.print_gre("Model saved")
+        BEST_LOSS = loss
+        model.save(PATH_SAVE)
+
+
+def visualize(gen, model_wnet, image, k, opt):  # pred toujours = 1
+    if k % 5 == 0 or k == 1:
+        pred = gen(image)
+        output = model_wnet(image)
+        image = (image[0] * 255).numpy().astype(np.uint8).reshape(opt.size, opt.size)
+        argmax = tf.expand_dims(tf.argmax(pred, 3), 3)
+        pred, output = (argmax[0] * 255).numpy().astype(np.uint8).reshape(opt.size, opt.size, 1), (
+                output[0] * 255).numpy().astype(np.uint8).reshape(
+            opt.size, opt.size)
+        io.imsave("result/image" + str(k) + ".png", image)
+        io.imsave("result/pred" + str(k) + ".png", pred)
+        io.imsave("result/output" + str(k) + ".png", output)
+
+
+def plot(train, test):
+    fig, axes = plt.subplots(2, figsize=(12, 8))
+    fig.suptitle('Training Metrics')
+
+    axes[0].set_ylabel("Train Loss", fontsize=14)
+    axes[0].plot(train)
+
+    axes[1].set_ylabel("Test Loss", fontsize=14)
+    axes[1].set_xlabel("Epoch", fontsize=14)
+    axes[1].plot(test)
+    fig.savefig("plots/plot.png")
+    plt.close(fig)
+
+
+def train(path_imgs, opt):
+    dataset_train, dataset_test = data.get_dataset(path_imgs, opt)
+    shape = (opt.size, opt.size, 1)
+    gen, model_wnet = wnet.wnet(input_shape=shape)
+
+    optimizer_gen = tf.keras.optimizers.Adam(opt.lr)
+    optimizer_wnet = tf.keras.optimizers.Adam(opt.lr)
+    checkpoint, checkpoint_path = get_checkpoint(optimizer_gen, optimizer_wnet, gen, model_wnet)
+    loss_ncut = losses.soft_n_cut_loss2
+    loss_recons = keras.metrics.mse  # todo : l2 reconstruction loss
+    epoch_loss_avg = tf.keras.metrics.Mean()
+    epoch_test_loss_avg = tf.keras.metrics.Mean()
+    train_loss_list = []
+    test_loss_list = []
+
+    utils.print_gre("Training....")
+    for epoch in range(opt.n_epochs):
+        for x, w in dataset_train:
+            gen_loss, wnet_loss, gen_grads, wnet_grads = grad(gen, model_wnet, x, w, loss_ncut, loss_recons, opt)
+            optimizer_gen.apply_gradients(zip(gen_grads, gen.trainable_variables))
+            optimizer_wnet.apply_gradients(zip(wnet_grads, model_wnet.trainable_variables))
+            epoch_loss_avg(gen_loss + wnet_loss)
+        for x, w in dataset_test:
+            gen_loss, wnet_loss, gen_grads, wnet_grads = grad(gen, model_wnet, x, w, loss_ncut, loss_recons, opt)
+            epoch_test_loss_avg(gen_loss + wnet_loss)
+            visualize(gen, model_wnet, x, epoch + 1, opt)
+        checkpoint.save(file_prefix=checkpoint_path)
+        utils.print_gre("Epoch {:03d}/{:03d}: Loss: {:.3f} Test_Loss: {:.3f}".format(epoch + 1, opt.n_epochs,
+                                                                                     epoch_loss_avg.result(),
+                                                                                     epoch_test_loss_avg.result()))
+        print(tf.math.is_nan(epoch_loss_avg))
+        train_loss_list.append(epoch_loss_avg.result())
+        test_loss_list.append(epoch_test_loss_avg.result())
+        # save(model, epoch_test_loss_avg.result())
+        plot(train_loss_list, test_loss_list)
+
+
+def get_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--n_epochs", type=int, default=10, help="number of epochs of training")
+    parser.add_argument("--batch_size", type=int, default=1, help="size of the batches")
+    parser.add_argument("--lr", type=float, default=0.001, help="adam: learning rate")
+    parser.add_argument("--size", type=int, default=128, help="Size of the image, one number")
+    parser.add_argument("--patience", type=int, default=10, help="Set patience value for early stopper")
+    args = parser.parse_args()
+    print(args)
+    return args
+
+
+if __name__ == "__main__":
+    opt = get_args()
+    train("/home/elefevre/Data_cells/dataset-128/", opt)
