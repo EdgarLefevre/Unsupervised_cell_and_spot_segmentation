@@ -3,7 +3,7 @@
 import argparse
 import os
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+os.environ["CUDA_VISIBLE_DEVICES"] = "5"
 os.environ["TF_XLA_FLAGS"] = "--tf_xla_cpu_global_jit"
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 # loglevel : 0 all printed, 1 I not printed, 2 I and W not printed, 3 nothing printed
@@ -27,9 +27,9 @@ def loss(gen, wnet, image, wei, loss1, loss2, size):
     pred = gen(image)
     gen_loss = tf.abs(loss1(pred, wei))  # todo : ici abs pas dans le papier, neg value
     output = wnet(image)
-    wnet_loss = size**2 * tf.cast(loss2(keras.backend.flatten(image), keras.backend.flatten(output)),
-                               dtype=tf.double)
-    # print("gen loss : {} \t reconstruction loss : {}".format(gen_loss, wnet_loss))
+    wnet_loss = (size ** 2) * tf.cast(loss2(keras.backend.flatten(image), keras.backend.flatten(output)),
+                                      dtype=tf.double)
+    print("gen loss : {} \t reconstruction loss : {}".format(gen_loss, wnet_loss))
     return gen_loss, wnet_loss
 
 
@@ -86,49 +86,74 @@ def plot(train, test):
     plt.close(fig)
 
 
+def train_step(gen, model_wnet, x, w, loss_ncut, loss_recons, opt, optimizer_gen, optimizer_wnet, e_l_avg):
+    gen_loss, wnet_loss, gen_grads, wnet_grads = grad(gen, model_wnet, x, w, loss_ncut, loss_recons, opt)
+    optimizer_gen.apply_gradients(zip(gen_grads, gen.trainable_variables))
+    optimizer_wnet.apply_gradients(zip(wnet_grads, model_wnet.trainable_variables))
+    return e_l_avg(gen_loss + wnet_loss)
+
+
+def test_step(gen, model_wnet, x, w, loss_ncut, loss_recons, opt, epoch_test_loss_avg, epoch):
+    gen_loss, wnet_loss, gen_grads, wnet_grads = grad(gen, model_wnet, x, w, loss_ncut, loss_recons, opt)
+    visualize(gen, model_wnet, x, epoch + 1, opt)
+    return epoch_test_loss_avg(gen_loss + wnet_loss)
+
+
+def distributed_train_step(gen, model_wnet, x, w, loss_ncut, loss_recons, opt, strat, optimizer_gen, optimizer_wnet,
+                           e_l_avg):
+    per_replica_losses = strat.run(train_step, args=(
+    gen, model_wnet, x, w, loss_ncut, loss_recons, opt, optimizer_gen, optimizer_wnet, e_l_avg))
+    return strat.reduce(tf.distribute.ReduceOp.SUM, per_replica_losses,
+                        axis=None)
+
+
+def distributed_test_step(gen, model_wnet, x, w, loss_ncut, loss_recons, opt, strat, epoch_test_loss_avg, epoch):
+    return strat.run(test_step, args=(gen, model_wnet, x, w, loss_ncut, loss_recons, opt, epoch_test_loss_avg, epoch,))
+
+
 def train(path_imgs, opt):
-    dataset_train, dataset_test = data.get_dataset(path_imgs, opt)
-    shape = (opt.size, opt.size, 1)
-    gen, model_wnet = wnet.wnet(input_shape=shape)
+    mirrored_strategy = tf.distribute.MirroredStrategy()
+    with mirrored_strategy.scope():
+        dataset_train, dataset_test = data.get_dataset(path_imgs, opt, mirrored_strategy)
+        shape = (opt.size, opt.size, 1)
+        gen, model_wnet = wnet.wnet(input_shape=shape)
 
-    optimizer_gen = tf.keras.optimizers.Adam(opt.lr)
-    optimizer_wnet = tf.keras.optimizers.Adam(opt.lr)
-    checkpoint, checkpoint_path = get_checkpoint(optimizer_gen, optimizer_wnet, gen, model_wnet)
-    loss_ncut = losses.soft_n_cut_loss2
-    loss_recons = keras.metrics.mse  # todo : l2 reconstruction loss
-    epoch_loss_avg = tf.keras.metrics.Mean()
-    epoch_test_loss_avg = tf.keras.metrics.Mean()
-    train_loss_list = []
-    test_loss_list = []
+        optimizer_gen = tf.keras.optimizers.Adam(opt.lr)
+        optimizer_wnet = tf.keras.optimizers.Adam(opt.lr)
+        checkpoint, checkpoint_path = get_checkpoint(optimizer_gen, optimizer_wnet, gen, model_wnet)
+        loss_ncut = losses.soft_n_cut_loss2
+        loss_recons = keras.metrics.mse
+        epoch_loss_avg = tf.keras.metrics.Mean()
+        epoch_test_loss_avg = tf.keras.metrics.Mean()
+        train_loss_list = []
+        test_loss_list = []
 
-    utils.print_gre("Training....")
-    for epoch in range(opt.n_epochs):
-        for x, w in dataset_train:
-            gen_loss, wnet_loss, gen_grads, wnet_grads = grad(gen, model_wnet, x, w, loss_ncut, loss_recons, opt)
-            optimizer_gen.apply_gradients(zip(gen_grads, gen.trainable_variables))
-            optimizer_wnet.apply_gradients(zip(wnet_grads, model_wnet.trainable_variables))
-            epoch_loss_avg(gen_loss + wnet_loss)
-        for x, w in dataset_test:
-            gen_loss, wnet_loss, gen_grads, wnet_grads = grad(gen, model_wnet, x, w, loss_ncut, loss_recons, opt)
-            epoch_test_loss_avg(gen_loss + wnet_loss)
-            visualize(gen, model_wnet, x, epoch + 1, opt)
-        checkpoint.save(file_prefix=checkpoint_path)
-        utils.print_gre("Epoch {:03d}/{:03d}: Loss: {:.3f} Test_Loss: {:.3f}".format(epoch + 1, opt.n_epochs,
-                                                                                     epoch_loss_avg.result(),
-                                                                                     epoch_test_loss_avg.result()))
-        print(tf.math.is_nan(epoch_loss_avg))
-        train_loss_list.append(epoch_loss_avg.result())
-        test_loss_list.append(epoch_test_loss_avg.result())
-        # save(model, epoch_test_loss_avg.result())
-        plot(train_loss_list, test_loss_list)
+        utils.print_gre("Training....")
+        for epoch in range(opt.n_epochs):
+            train_loss = 0.0
+            test_loss = 0.0
+            for x, w in dataset_train:
+                train_loss += distributed_train_step(gen, model_wnet, x, w, loss_ncut, loss_recons, opt,
+                                                     mirrored_strategy, optimizer_gen, optimizer_wnet, epoch_loss_avg)
+            for x, w in dataset_test:
+                test_loss += distributed_test_step(gen, model_wnet, x, w, loss_ncut, loss_recons, opt,
+                                                   mirrored_strategy, epoch_test_loss_avg, epoch)
+            checkpoint.save(file_prefix=checkpoint_path)
+            utils.print_gre("Epoch {:03d}/{:03d}: Loss: {:.3f} Test_Loss: {:.3f}".format(epoch + 1, opt.n_epochs,
+                                                                                         train_loss,
+                                                                                         test_loss))
+            train_loss_list.append(epoch_loss_avg.result())
+            test_loss_list.append(epoch_test_loss_avg.result())
+            # save(model, epoch_test_loss_avg.result())
+            plot(train_loss_list, test_loss_list)
 
 
 def get_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--n_epochs", type=int, default=10, help="number of epochs of training")
-    parser.add_argument("--batch_size", type=int, default=1, help="size of the batches")
+    parser.add_argument("--batch_size", type=int, default=2, help="size of the batches")
     parser.add_argument("--lr", type=float, default=0.001, help="adam: learning rate")
-    parser.add_argument("--size", type=int, default=128, help="Size of the image, one number")
+    parser.add_argument("--size", type=int, default=256, help="Size of the image, one number")
     parser.add_argument("--patience", type=int, default=10, help="Set patience value for early stopper")
     args = parser.parse_args()
     print(args)
@@ -137,4 +162,4 @@ def get_args():
 
 if __name__ == "__main__":
     opt = get_args()
-    train("/home/elefevre/Data_cells/dataset-128/", opt)
+    train("/home/elefevre/Data_Eduardo/cell/patched/", opt)

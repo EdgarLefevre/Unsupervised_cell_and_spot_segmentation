@@ -10,10 +10,10 @@ import tensorflow as tf
 import sklearn.model_selection as sk
 
 
-def get_dataset(path_imgs, args):
+def get_dataset(path_imgs, args, strat):
     utils.print_gre("Creating dataset...")
     dataset = []
-    file_list = utils.list_files(path_imgs)
+    file_list = utils.list_files(path_imgs)  # todo : remove [:10]
     for file in file_list:
         img = io.imread(path_imgs + file, plugin="tifffile")
         img = np.array(img / 255).reshape(-1, args.size, args.size, 1).astype('float32')
@@ -28,7 +28,7 @@ def get_dataset(path_imgs, args):
     ds_train = tf.data.Dataset.from_tensor_slices((dataset_train, weights_train)).shuffle(10000).batch(args.batch_size)
     ds_test = tf.data.Dataset.from_tensor_slices((dataset_test, weights_test)).shuffle(10000).batch(args.batch_size)
     utils.print_gre("Dataset created !")
-    return ds_train, ds_test
+    return strat.experimental_distribute_dataset(ds_train), strat.experimental_distribute_dataset(ds_test)
 
 
 def cal_weight(raw_data, shape, radius=5, sigmaI=10, sigmaX=4):
