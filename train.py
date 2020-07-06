@@ -138,7 +138,7 @@ def train(path_imgs, opt):
             for x, w in dataset_test:
                 test_loss += distributed_test_step(gen, model_wnet, x, w, loss_ncut, loss_recons, opt,
                                                    mirrored_strategy, epoch_test_loss_avg, epoch)
-            checkpoint.save(file_prefix=checkpoint_path)
+            #checkpoint.save(file_prefix=checkpoint_path)
             utils.print_gre("Epoch {:03d}/{:03d}: Loss: {:.3f} Test_Loss: {:.3f}".format(epoch + 1, opt.n_epochs,
                                                                                          train_loss,
                                                                                          test_loss))
