@@ -3,7 +3,7 @@
 import argparse
 import os
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "4,5"
+os.environ["CUDA_VISIBLE_DEVICES"] = "5"
 os.environ["TF_XLA_FLAGS"] = "--tf_xla_cpu_global_jit"
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 # loglevel : 0 all printed, 1 I not printed, 2 I and W not printed, 3 nothing printed
@@ -28,7 +28,7 @@ widgets = [
 ]
 
 PATH_SAVE = "./wnet.h5"
-BEST_LOSS = 9999999999999999999999999999999999999999
+BEST_LOSS = 9999999999999999999999999999
 
 
 def loss(gen, wnet, image, wei, loss1, loss2, size):
@@ -143,14 +143,14 @@ def train(path_imgs, opt):
             train_loss = 0.0
             test_loss = 0.0
             utils.print_gre("Training data:")
-            with progressbar.ProgressBar(max_value=len_train, widgets=widgets) as bar:
+            with progressbar.ProgressBar(max_value=len_train/opt.batch_size, widgets=widgets) as bar:
                 for i, (x, w) in enumerate(dataset_train):
                     bar.update(i)
                     train_loss += distributed_train_step(gen, model_wnet, x, w, loss_ncut, loss_recons, opt,
                                                          mirrored_strategy, optimizer_gen, optimizer_wnet,
                                                          epoch_loss_avg)
             utils.print_gre("Testing data:")
-            with progressbar.ProgressBar(max_value=len_test, widgets=widgets) as bar2:
+            with progressbar.ProgressBar(max_value=len_test/opt.batch_size, widgets=widgets) as bar2:
                 for j, (x, w) in enumerate(dataset_test):
                     bar2.update(j)
                     test_loss += distributed_test_step(gen, model_wnet, x, w, loss_ncut, loss_recons, opt,
@@ -168,7 +168,7 @@ def train(path_imgs, opt):
 def get_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--n_epochs", type=int, default=1000, help="number of epochs of training")
-    parser.add_argument("--batch_size", type=int, default=6, help="size of the batches")
+    parser.add_argument("--batch_size", type=int, default=3, help="size of the batches")
     parser.add_argument("--lr", type=float, default=0.001, help="adam: learning rate")
     parser.add_argument("--size", type=int, default=256, help="Size of the image, one number")
     parser.add_argument("--patience", type=int, default=10, help="Set patience value for early stopper")
