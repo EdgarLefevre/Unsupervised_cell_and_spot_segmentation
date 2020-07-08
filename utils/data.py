@@ -8,6 +8,14 @@ import random
 import cupy as cp
 import tensorflow as tf
 import sklearn.model_selection as sk
+import progressbar
+
+# widget list for the progress bar
+widgets = [
+    ' [', progressbar.Timer(), '] ',
+    progressbar.Bar(),
+    ' (', progressbar.ETA(), ') ',
+]
 
 
 def get_dataset(path_imgs, args, strat):
@@ -58,12 +66,14 @@ def get_weights(raw_data):
     weights = []
     # raw_data = np.rollaxis(raw_data, 3, 1)
     shape = raw_data.shape
-    for batch_id in range(0, shape[0]):
-        batch = raw_data[batch_id:min(shape[0], batch_id + 1)]
-        tmp_weight = cal_weight(batch, batch.shape)
-        weight = cp.asnumpy(tmp_weight)
-        weights.append(weight)
-        del tmp_weight
+    with progressbar.ProgressBar(max_value=shape[0], widgets=widgets) as bar:
+        for batch_id in range(0, shape[0]):
+            bar.update(batch_id)
+            batch = raw_data[batch_id:min(shape[0], batch_id + 1)]
+            tmp_weight = cal_weight(batch, batch.shape)
+            weight = cp.asnumpy(tmp_weight)
+            weights.append(weight)
+            del tmp_weight
     cp.get_default_memory_pool().free_all_blocks()
     utils.print_gre("Weights calculated.")
     return weights
