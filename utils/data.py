@@ -29,7 +29,7 @@ def get_dataset(path_imgs, args, strat):
     ds_train = tf.data.Dataset.from_tensor_slices((dataset_train, weights_train)).shuffle(10000).batch(args.batch_size)
     ds_test = tf.data.Dataset.from_tensor_slices((dataset_test, weights_test)).shuffle(10000).batch(args.batch_size)
     utils.print_gre("Dataset created !")
-    return strat.experimental_distribute_dataset(ds_train), strat.experimental_distribute_dataset(ds_test)
+    return strat.experimental_distribute_dataset(ds_train), strat.experimental_distribute_dataset(ds_test), len(dataset_train), len(dataset_test)
 
 
 def cal_weight(raw_data, shape, radius=5, sigmaI=10, sigmaX=4):

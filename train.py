@@ -18,6 +18,16 @@ import numpy as np
 import skimage.io as io
 import models.losses as losses
 import matplotlib.pyplot as plt
+import progressbar
+
+
+# widget list for the progress bar
+widgets = [
+    ' [', progressbar.Timer(), '] ',
+    progressbar.Bar(),
+    ' (', progressbar.ETA(), ') ',
+]
+
 
 PATH_SAVE = "./wnet.h5"
 BEST_LOSS = 9999999999999999999999999999999999999999
@@ -114,7 +124,7 @@ def distributed_test_step(gen, model_wnet, x, w, loss_ncut, loss_recons, opt, st
 def train(path_imgs, opt):
     mirrored_strategy = tf.distribute.MirroredStrategy()
     with mirrored_strategy.scope():
-        dataset_train, dataset_test = data.get_dataset(path_imgs, opt, mirrored_strategy)
+        dataset_train, dataset_test, len_train, len_test = data.get_dataset(path_imgs, opt, mirrored_strategy)
         shape = (opt.size, opt.size, 1)
         gen, model_wnet = wnet.wnet(input_shape=shape)
 
@@ -132,12 +142,18 @@ def train(path_imgs, opt):
         for epoch in range(opt.n_epochs):
             train_loss = 0.0
             test_loss = 0.0
-            for x, w in dataset_train:
-                train_loss += distributed_train_step(gen, model_wnet, x, w, loss_ncut, loss_recons, opt,
-                                                     mirrored_strategy, optimizer_gen, optimizer_wnet, epoch_loss_avg)
-            for x, w in dataset_test:
-                test_loss += distributed_test_step(gen, model_wnet, x, w, loss_ncut, loss_recons, opt,
-                                                   mirrored_strategy, epoch_test_loss_avg, epoch)
+            print("Training data:")
+            with progressbar.ProgressBar(max_value=len_train, widgets=widgets) as bar:
+                for i, (x, w) in enumerate(dataset_train):
+                    bar.update(i)
+                    train_loss += distributed_train_step(gen, model_wnet, x, w, loss_ncut, loss_recons, opt,
+                                                         mirrored_strategy, optimizer_gen, optimizer_wnet, epoch_loss_avg)
+            print("Testing data:")
+            with progressbar.ProgressBar(max_value=len_test, widgets=widgets) as bar2:
+                for j, (x, w) in enumerate(dataset_test):
+                    bar2.update(j)
+                    test_loss += distributed_test_step(gen, model_wnet, x, w, loss_ncut, loss_recons, opt,
+                                                       mirrored_strategy, epoch_test_loss_avg, epoch)
             #checkpoint.save(file_prefix=checkpoint_path)
             utils.print_gre("Epoch {:03d}/{:03d}: Loss: {:.3f} Test_Loss: {:.3f}".format(epoch + 1, opt.n_epochs,
                                                                                          train_loss,
