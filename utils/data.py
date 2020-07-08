@@ -13,7 +13,7 @@ import sklearn.model_selection as sk
 def get_dataset(path_imgs, args, strat):
     utils.print_gre("Creating dataset...")
     dataset = []
-    file_list = utils.list_files(path_imgs)  # todo : remove [:10]
+    file_list = utils.list_files(path_imgs)  # add [:10] to reduce dataset size
     for file in file_list:
         img = io.imread(path_imgs + file, plugin="tifffile")
         img = np.array(img / 255).reshape(-1, args.size, args.size, 1).astype('float32')
@@ -24,7 +24,8 @@ def get_dataset(path_imgs, args, strat):
     dataset = np.array(dataset)
     dataset = dataset.reshape(-1, args.size, args.size, 1)[n_sample]
     weights = get_weights(dataset)
-    dataset_train, dataset_test, weights_train, weights_test = sk.train_test_split(dataset, weights, test_size=0.2, random_state=42)
+    dataset_train, dataset_test, weights_train, weights_test = sk.train_test_split(dataset, weights, test_size=0.2,
+                                                                                   random_state=42)
     ds_train = tf.data.Dataset.from_tensor_slices((dataset_train, weights_train)).shuffle(10000).batch(args.batch_size)
     ds_test = tf.data.Dataset.from_tensor_slices((dataset_test, weights_test)).shuffle(10000).batch(args.batch_size)
     utils.print_gre("Dataset created !")

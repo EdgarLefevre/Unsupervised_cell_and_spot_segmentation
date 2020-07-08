@@ -29,7 +29,7 @@ def loss(gen, wnet, image, wei, loss1, loss2, size):
     output = wnet(image)
     wnet_loss = (size ** 2) * tf.cast(loss2(keras.backend.flatten(image), keras.backend.flatten(output)),
                                       dtype=tf.double)
-    print("gen loss : {} \t reconstruction loss : {}".format(gen_loss, wnet_loss))
+    #print("gen loss : {} \t reconstruction loss : {}".format(gen_loss, wnet_loss))
     return gen_loss, wnet_loss
 
 
@@ -150,8 +150,8 @@ def train(path_imgs, opt):
 
 def get_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--n_epochs", type=int, default=10, help="number of epochs of training")
-    parser.add_argument("--batch_size", type=int, default=2, help="size of the batches")
+    parser.add_argument("--n_epochs", type=int, default=1000, help="number of epochs of training")
+    parser.add_argument("--batch_size", type=int, default=3, help="size of the batches")
     parser.add_argument("--lr", type=float, default=0.001, help="adam: learning rate")
     parser.add_argument("--size", type=int, default=256, help="Size of the image, one number")
     parser.add_argument("--patience", type=int, default=10, help="Set patience value for early stopper")
