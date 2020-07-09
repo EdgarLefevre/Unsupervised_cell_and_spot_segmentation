@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="WebServers">
+    <option name="servers">
+      <webServer id="b4464f56-3b3c-41c9-b5a3-811322e7c192" name="baracuda" url="http://baracuda.infra.cbib.u-bordeaux.fr">
+        <fileTransfer rootFolder="/home/elefevre" accessType="SFTP" host="baracuda.infra.cbib.u-bordeaux.fr" port="22" sshConfigId="82d0040e-1720-4e13-9332-61a820e9d0d6" sshConfig="elefevre@baracuda.infra.cbib.u-bordeaux.fr" keyPair="true">
+          <advancedOptions>
+            <advancedOptions dataProtectionLevel="Private" passiveMode="true" shareSSLContext="true" />
+          </advancedOptions>
+        </fileTransfer>
+      </webServer>
+    </option>
+  </component>
+</project>
