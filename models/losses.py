@@ -90,7 +90,6 @@ def soft_n_cut_loss(flatten_image, prob, k, rows, cols):
         loss = loss - (numerator(prob, weights) / denominator(prob, weights))
     return loss
 
-
 def soft_n_cut_loss2(seg, weight, radius=5, K=2):
     cropped_seg = []
     sum_weight = tf.reduce_sum(weight)

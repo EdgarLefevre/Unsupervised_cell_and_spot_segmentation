@@ -18,9 +18,17 @@ import numpy as np
 import skimage.io as io
 import models.losses as losses
 import matplotlib.pyplot as plt
+import progressbar
+
+# widget list for the progress bar
+widgets = [
+    ' [', progressbar.Timer(), '] ',
+    progressbar.Bar(),
+    ' (', progressbar.ETA(), ') ',
+]
 
 PATH_SAVE = "./wnet.h5"
-BEST_LOSS = 9999999999999999999999999999999999999999
+BEST_LOSS = 9999999999999999999999999999
 
 
 def loss(gen, wnet, image, wei, loss1, loss2, size):
@@ -29,7 +37,7 @@ def loss(gen, wnet, image, wei, loss1, loss2, size):
     output = wnet(image)
     wnet_loss = (size ** 2) * tf.cast(loss2(keras.backend.flatten(image), keras.backend.flatten(output)),
                                       dtype=tf.double)
-    print("gen loss : {} \t reconstruction loss : {}".format(gen_loss, wnet_loss))
+    # print("gen loss : {} \t reconstruction loss : {}".format(gen_loss, wnet_loss))
     return gen_loss, wnet_loss
 
 
@@ -102,7 +110,7 @@ def test_step(gen, model_wnet, x, w, loss_ncut, loss_recons, opt, epoch_test_los
 def distributed_train_step(gen, model_wnet, x, w, loss_ncut, loss_recons, opt, strat, optimizer_gen, optimizer_wnet,
                            e_l_avg):
     per_replica_losses = strat.run(train_step, args=(
-    gen, model_wnet, x, w, loss_ncut, loss_recons, opt, optimizer_gen, optimizer_wnet, e_l_avg))
+        gen, model_wnet, x, w, loss_ncut, loss_recons, opt, optimizer_gen, optimizer_wnet, e_l_avg))
     return strat.reduce(tf.distribute.ReduceOp.SUM, per_replica_losses,
                         axis=None)
 
@@ -114,7 +122,9 @@ def distributed_test_step(gen, model_wnet, x, w, loss_ncut, loss_recons, opt, st
 def train(path_imgs, opt):
     mirrored_strategy = tf.distribute.MirroredStrategy()
     with mirrored_strategy.scope():
-        dataset_train, dataset_test = data.get_dataset(path_imgs, opt, mirrored_strategy)
+        dataset_train, dataset_test, len_train, len_test = data.get_dataset(path_imgs, opt, mirrored_strategy)
+        utils.print_red("Size of training set : {}".format(len_train))
+        utils.print_red("Size of testing set : {}".format(len_test))
         shape = (opt.size, opt.size, 1)
         gen, model_wnet = wnet.wnet(input_shape=shape)
 
@@ -132,13 +142,20 @@ def train(path_imgs, opt):
         for epoch in range(opt.n_epochs):
             train_loss = 0.0
             test_loss = 0.0
-            for x, w in dataset_train:
-                train_loss += distributed_train_step(gen, model_wnet, x, w, loss_ncut, loss_recons, opt,
-                                                     mirrored_strategy, optimizer_gen, optimizer_wnet, epoch_loss_avg)
-            for x, w in dataset_test:
-                test_loss += distributed_test_step(gen, model_wnet, x, w, loss_ncut, loss_recons, opt,
-                                                   mirrored_strategy, epoch_test_loss_avg, epoch)
-            #checkpoint.save(file_prefix=checkpoint_path)
+            utils.print_gre("Training data:")
+            with progressbar.ProgressBar(max_value=len_train/opt.batch_size, widgets=widgets) as bar:
+                for i, (x, w) in enumerate(dataset_train):
+                    bar.update(i)
+                    train_loss += distributed_train_step(gen, model_wnet, x, w, loss_ncut, loss_recons, opt,
+                                                         mirrored_strategy, optimizer_gen, optimizer_wnet,
+                                                         epoch_loss_avg)
+            utils.print_gre("Testing data:")
+            with progressbar.ProgressBar(max_value=len_test/opt.batch_size, widgets=widgets) as bar2:
+                for j, (x, w) in enumerate(dataset_test):
+                    bar2.update(j)
+                    test_loss += distributed_test_step(gen, model_wnet, x, w, loss_ncut, loss_recons, opt,
+                                                       mirrored_strategy, epoch_test_loss_avg, epoch)
+            # checkpoint.save(file_prefix=checkpoint_path)
             utils.print_gre("Epoch {:03d}/{:03d}: Loss: {:.3f} Test_Loss: {:.3f}".format(epoch + 1, opt.n_epochs,
                                                                                          train_loss,
                                                                                          test_loss))
@@ -150,8 +167,8 @@ def train(path_imgs, opt):
 
 def get_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--n_epochs", type=int, default=10, help="number of epochs of training")
-    parser.add_argument("--batch_size", type=int, default=2, help="size of the batches")
+    parser.add_argument("--n_epochs", type=int, default=1000, help="number of epochs of training")
+    parser.add_argument("--batch_size", type=int, default=3, help="size of the batches")
     parser.add_argument("--lr", type=float, default=0.001, help="adam: learning rate")
     parser.add_argument("--size", type=int, default=256, help="Size of the image, one number")
     parser.add_argument("--patience", type=int, default=10, help="Set patience value for early stopper")
