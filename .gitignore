@@ -131,3 +131,5 @@ dmypy.json
 *.png
 *.pth
 saved_models/*
+
+.idea/*
