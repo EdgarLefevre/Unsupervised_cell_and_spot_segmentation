@@ -6,7 +6,12 @@
 
 
 Experiments to segment cell and spot images without labels.
+## Installation
 
+```sh
+conda env create -f env.yaml
+pre-commit install
+```
 
 ## Usage
 
