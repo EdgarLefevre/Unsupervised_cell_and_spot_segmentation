@@ -11,8 +11,8 @@ python train.py
 ```
 
 ## Future Work
-	
-	- code crf 
+
+	- code crf
 	- improve stability
 	- why losses = nan when multigpu
 	- clean training loop

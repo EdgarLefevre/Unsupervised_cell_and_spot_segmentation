@@ -2,14 +2,14 @@
 # -*- coding: utf-8 -*-
 
 import tensorflow as tf
-import numpy as np
-
 
 # todo : implement l2 loss (reconstruction)
 
+
 def edge_weights(flatten_image, rows, cols, std_intensity=3.0, std_position=1.0):
     """
-    flatten_image : 1 dim tf array of the row flattened image ( intensity is the average of the three channels)
+    flatten_image : 1 dim tf array of the row flattened image
+    ( intensity is the average of the three channels)
     std_intensity : standard deviation for intensity
     std_position : standard devistion for position
     rows : rows of the original image (unflattened image)
@@ -59,7 +59,9 @@ def numerator(k_class_prob, weights):
     weights : edge weights n*n tensor
     """
     k_class_prob = tf.reshape(k_class_prob, (-1,))
-    return tf.reduce_sum(tf.multiply(weights, outer_product(k_class_prob, k_class_prob)))
+    return tf.reduce_sum(
+        tf.multiply(weights, outer_product(k_class_prob, k_class_prob))
+    )
 
 
 def denominator(k_class_prob, weights):
@@ -69,7 +71,11 @@ def denominator(k_class_prob, weights):
     """
     k_class_prob = tf.cast(k_class_prob, tf.float32)
     k_class_prob = tf.reshape(k_class_prob, (-1,))
-    return tf.reduce_sum(tf.multiply(weights, outer_product(k_class_prob, tf.ones(tf.shape(k_class_prob)))))
+    return tf.reduce_sum(
+        tf.multiply(
+            weights, outer_product(k_class_prob, tf.ones(tf.shape(k_class_prob)))
+        )
+    )
 
 
 def soft_n_cut_loss(flatten_image, prob, k, rows, cols):
@@ -77,7 +83,8 @@ def soft_n_cut_loss(flatten_image, prob, k, rows, cols):
     Inputs:
     prob : (rows*cols*k) tensor
     k : number of classes (integer)
-    flatten_image : 1 dim tf array of the row flattened image ( intensity is the average of the three channels)
+    flatten_image : 1 dim tf array of the row flattened image
+    ( intensity is the average of the three channels)
     rows : number of the rows in the original image
     cols : number of the cols in the original image
     Output :
@@ -90,15 +97,27 @@ def soft_n_cut_loss(flatten_image, prob, k, rows, cols):
         loss = loss - (numerator(prob, weights) / denominator(prob, weights))
     return loss
 
+
 def soft_n_cut_loss2(seg, weight, radius=5, K=2):
     cropped_seg = []
     sum_weight = tf.reduce_sum(weight)
-    padded_seg = tf.pad(seg, [[radius - 1, radius - 1], [radius - 1, radius - 1], [radius - 1, radius - 1],
-                              [radius - 1, radius - 1]])
+    padded_seg = tf.pad(
+        seg,
+        [
+            [radius - 1, radius - 1],
+            [radius - 1, radius - 1],
+            [radius - 1, radius - 1],
+            [radius - 1, radius - 1],
+        ],
+    )
     for m in tf.range((radius - 1) * 2 + 1, dtype=tf.int32):
         column = []
         for n in tf.range((radius - 1) * 2 + 1, dtype=tf.int32):
-            column.append(tf.identity(padded_seg[:, :, m:m + seg.shape[2], n:n + seg.shape[3]]))
+            column.append(
+                tf.identity(
+                    padded_seg[:, :, m : m + seg.shape[2], n : n + seg.shape[3]]
+                )
+            )
         cropped_seg.append(tf.stack(column, 4))
     cropped_seg = tf.stack(cropped_seg, 4)
     cropped_seg = tf.cast(cropped_seg, dtype=tf.float64)

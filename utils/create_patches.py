@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 import multiprocessing
 import os
+
 import numpy as np
 import skimage.io as io
 import sklearn.feature_extraction.image as image
@@ -17,10 +18,20 @@ def multi_process_fun(file_list, function):
     list_size = len(file_list)
     num_workers = 4
     worker_amount = int(list_size / num_workers)
-    print(len(file_list[worker_amount * 0: worker_amount * 0 + worker_amount]))
+    print(len(file_list[worker_amount * 0 : worker_amount * 0 + worker_amount]))
     processes = []
     for worker_num in range(num_workers):
-        process = multiprocessing.Process(target=function, args=([file_list[worker_amount * worker_num: worker_amount * worker_num + worker_amount]]))
+        process = multiprocessing.Process(
+            target=function,
+            args=(
+                [
+                    file_list[
+                        worker_amount * worker_num : worker_amount * worker_num
+                        + worker_amount
+                    ]
+                ]
+            ),
+        )
         processes.append(process)
         process.start()
 
@@ -29,8 +40,8 @@ def multi_process_fun(file_list, function):
 
 
 def create_patch_name(path, i):
-    img_name = path.split('/')[-1]
-    return img_name.split('.')[0] + '_' + str(i) + ".tiff"
+    img_name = path.split("/")[-1]
+    return img_name.split(".")[0] + "_" + str(i) + ".tiff"
 
 
 def wrapped_patch(im_list, patch_size=(256, 256)):

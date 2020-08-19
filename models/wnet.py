@@ -3,24 +3,41 @@
 
 import tensorflow.keras as keras
 import tensorflow.keras.layers as layers
-import tensorflow.keras.regularizers as regularizers
-import tensorflow.keras.backend as K
-import tensorflow as tf
-from .losses import soft_n_cut_loss, soft_n_cut_loss2
-import numpy as np
 
 
-def block_down(inputs, filters, drop=0.3, w_decay=0.0001, kernel_size=3, separable=False):
+def block_down(
+    inputs, filters, drop=0.3, w_decay=0.0001, kernel_size=3, separable=False
+):
     if separable:
-        x = layers.SeparableConv2D(filters, (kernel_size, kernel_size), kernel_initializer='he_normal', padding='same'
-                                   , activation="elu")(inputs)
-        c = layers.SeparableConv2D(filters, (kernel_size, kernel_size), activation='elu',
-                                   kernel_initializer='he_normal', padding='same')(x)
+        x = layers.SeparableConv2D(
+            filters,
+            (kernel_size, kernel_size),
+            kernel_initializer="he_normal",
+            padding="same",
+            activation="elu",
+        )(inputs)
+        c = layers.SeparableConv2D(
+            filters,
+            (kernel_size, kernel_size),
+            activation="elu",
+            kernel_initializer="he_normal",
+            padding="same",
+        )(x)
     else:
-        x = layers.Conv2D(filters, (kernel_size, kernel_size), kernel_initializer='he_normal', padding='same'
-                          , activation="elu")(inputs)
-        c = layers.Conv2D(filters, (kernel_size, kernel_size), activation='elu', kernel_initializer='he_normal',
-                          padding='same')(x)
+        x = layers.Conv2D(
+            filters,
+            (kernel_size, kernel_size),
+            kernel_initializer="he_normal",
+            padding="same",
+            activation="elu",
+        )(inputs)
+        c = layers.Conv2D(
+            filters,
+            (kernel_size, kernel_size),
+            activation="elu",
+            kernel_initializer="he_normal",
+            padding="same",
+        )(x)
     p = layers.BatchNormalization()(c)
     p = layers.Dropout(drop)(p)
     p = layers.MaxPooling2D((2, 2))(p)
@@ -28,30 +45,61 @@ def block_down(inputs, filters, drop=0.3, w_decay=0.0001, kernel_size=3, separab
 
 
 def bridge(inputs, filters, drop=0.2, kernel_size=3):
-    x = layers.SeparableConv2D(filters, (kernel_size, kernel_size), kernel_initializer='he_normal', padding='same',
-                               activation="elu")(inputs)
-    x = layers.SeparableConv2D(filters, (kernel_size, kernel_size), kernel_initializer='he_normal', padding='same',
-                               activation="elu")(x)
+    x = layers.SeparableConv2D(
+        filters,
+        (kernel_size, kernel_size),
+        kernel_initializer="he_normal",
+        padding="same",
+        activation="elu",
+    )(inputs)
+    x = layers.SeparableConv2D(
+        filters,
+        (kernel_size, kernel_size),
+        kernel_initializer="he_normal",
+        padding="same",
+        activation="elu",
+    )(x)
     x = layers.BatchNormalization()(x)
     x = layers.Dropout(drop)(x)
     return x
 
 
-def block_up(input, conc, filters, drop=0.3, w_decay=0.0001, kernel_size=3, separable=False):
-    x = layers.Conv2DTranspose(filters, (2, 2), strides=(2, 2), padding='same',
-                               )(input)
+def block_up(
+    input, conc, filters, drop=0.3, w_decay=0.0001, kernel_size=3, separable=False
+):
+    x = layers.Conv2DTranspose(filters, (2, 2), strides=(2, 2), padding="same",)(input)
     for i in range(len(conc)):
         x = layers.concatenate([x, conc[i]])
     if separable:
-        x = layers.SeparableConv2D(filters, (kernel_size, kernel_size), kernel_initializer='he_normal', padding='same',
-                                   activation="elu")(x)
-        x = layers.SeparableConv2D(filters, (kernel_size, kernel_size), kernel_initializer='he_normal', padding='same',
-                                   activation="elu")(x)
+        x = layers.SeparableConv2D(
+            filters,
+            (kernel_size, kernel_size),
+            kernel_initializer="he_normal",
+            padding="same",
+            activation="elu",
+        )(x)
+        x = layers.SeparableConv2D(
+            filters,
+            (kernel_size, kernel_size),
+            kernel_initializer="he_normal",
+            padding="same",
+            activation="elu",
+        )(x)
     else:
-        x = layers.Conv2D(filters, (kernel_size, kernel_size), kernel_initializer='he_normal', padding='same',
-                          activation="elu")(x)
-        x = layers.Conv2D(filters, (kernel_size, kernel_size), kernel_initializer='he_normal', padding='same',
-                          activation="elu")(x)
+        x = layers.Conv2D(
+            filters,
+            (kernel_size, kernel_size),
+            kernel_initializer="he_normal",
+            padding="same",
+            activation="elu",
+        )(x)
+        x = layers.Conv2D(
+            filters,
+            (kernel_size, kernel_size),
+            kernel_initializer="he_normal",
+            padding="same",
+            activation="elu",
+        )(x)
     x = layers.BatchNormalization()(x)
     x = layers.Dropout(drop)(x)
     return x
