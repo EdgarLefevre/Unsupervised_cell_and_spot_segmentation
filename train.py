@@ -52,8 +52,8 @@ def grad(gen, wnet, image, wei, loss1, loss2, opt):
     with tf.GradientTape() as gen_tape, tf.GradientTape() as wnet_tape:
         gen_loss, wnet_loss = loss(gen, wnet, image, wei, loss1, loss2, opt.size)
     return (
-        gen_loss,
-        wnet_loss,
+        gen_loss / opt.batch_size,
+        wnet_loss / opt.batch_size,
         gen_tape.gradient(gen_loss, gen.trainable_variables),
         wnet_tape.gradient(wnet_loss, wnet.trainable_variables),
     )
