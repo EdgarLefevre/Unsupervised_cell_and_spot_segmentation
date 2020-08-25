@@ -224,6 +224,7 @@ def train(path_imgs, opt):
         for epoch in range(opt.n_epochs):
             train_loss = 0.0
             test_loss = 0.0
+            utils.print_gre("Epoch {}/{}:".format(epoch + 1, opt.n_epochs))
             utils.print_gre("Training data:")
             with progressbar.ProgressBar(
                 max_value=len_train / opt.batch_size, widgets=widgets
