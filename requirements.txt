@@ -1,5 +1,0 @@
-tensorflow-gpu
-numpy
-scikit-image
-scikit-learn
-cupy
