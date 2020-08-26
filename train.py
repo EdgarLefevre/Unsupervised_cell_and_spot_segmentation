@@ -15,7 +15,7 @@ import models.wnet as wnet
 import utils.data as data
 import utils.utils as utils
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "5"
+os.environ["CUDA_VISIBLE_DEVICES"] = "2,3"
 os.environ["TF_XLA_FLAGS"] = "--tf_xla_cpu_global_jit"
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
 # loglevel : 0 all printed, 1 I not printed, 2 I and W not printed, 3 nothing printed
@@ -79,11 +79,11 @@ def save(model, loss):
         model.save(PATH_SAVE)
 
 
-def visualize(gen, model_wnet, image, k, opt):  # pred toujours = 1
+def visualize(gen, model_wnet, image, k, opt):
     if k % 5 == 0 or k == 1:
         pred = gen(image)
         output = model_wnet(image)
-        image = (image[0] * 255).numpy().astype(np.uint8).reshape(opt.size, opt.size)
+        image = (image[0] * 255).astype(np.uint8).reshape(opt.size, opt.size)
         argmax = tf.expand_dims(tf.argmax(pred, 3), 3)
         pred, output = (
             (argmax[0] * 255).numpy().astype(np.uint8).reshape(opt.size, opt.size, 1),
@@ -119,7 +119,9 @@ def train_step(
     optimizer_gen,
     optimizer_wnet,
     e_l_avg,
+    strat,
 ):
+    # with strat.scope():
     gen_loss, wnet_loss, gen_grads, wnet_grads = grad(
         gen, model_wnet, x, w, loss_ncut, loss_recons, opt
     )
@@ -134,10 +136,10 @@ def test_step(
     gen_loss, wnet_loss, gen_grads, wnet_grads = grad(
         gen, model_wnet, x, w, loss_ncut, loss_recons, opt
     )
-    visualize(gen, model_wnet, x, epoch + 1, opt)
     return epoch_test_loss_avg(gen_loss + wnet_loss)
 
 
+# @tf.function
 def distributed_train_step(
     gen,
     model_wnet,
@@ -164,9 +166,10 @@ def distributed_train_step(
             optimizer_gen,
             optimizer_wnet,
             e_l_avg,
+            strat,
         ),
     )
-    return strat.reduce(tf.distribute.ReduceOp.SUM, per_replica_losses, axis=None)
+    return strat.reduce(tf.distribute.ReduceOp.MEAN, per_replica_losses, axis=None)
 
 
 def distributed_test_step(
@@ -262,6 +265,8 @@ def train(path_imgs, opt):
                         epoch_test_loss_avg,
                         epoch,
                     )
+                images = mirrored_strategy.experimental_local_results(x)
+                visualize(gen, model_wnet, images[0].numpy(), epoch + 1, opt)
             # checkpoint.save(file_prefix=checkpoint_path)
             utils.print_gre(
                 "Epoch {:03d}/{:03d}: Loss: {:.3f} Test_Loss: {:.3f}".format(
@@ -279,7 +284,7 @@ def get_args():
     parser.add_argument(
         "--n_epochs", type=int, default=1000, help="number of epochs of training"
     )
-    parser.add_argument("--batch_size", type=int, default=3, help="size of the batches")
+    parser.add_argument("--batch_size", type=int, default=6, help="size of the batches")
     parser.add_argument("--lr", type=float, default=0.001, help="adam: learning rate")
     parser.add_argument(
         "--size", type=int, default=256, help="Size of the image, one number"
