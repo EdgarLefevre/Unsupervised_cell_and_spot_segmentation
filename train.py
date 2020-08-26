@@ -247,6 +247,12 @@ def get_args():
     parser.add_argument(
         "--patience", type=int, default=10, help="Set patience value for early stopper"
     )
+    parser.add_argument(
+        "--img_path",
+        type=str,
+        default="/home/elefevre/Data_Eduardo/cell/patched/",
+        help="Path to get imgs",
+    )
     args = parser.parse_args()
     print(args)
     return args
@@ -254,4 +260,4 @@ def get_args():
 
 if __name__ == "__main__":
     opt = get_args()
-    train("/home/elefevre/Data_Eduardo/cell/patched/", opt)
+    train(opt.img_path, opt)
