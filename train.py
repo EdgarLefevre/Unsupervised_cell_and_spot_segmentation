@@ -254,7 +254,7 @@ def get_args():
         help="Path to get imgs",
     )
     args = parser.parse_args()
-    print(args)
+    utils.print_red("Args: "+str(args))
     return args
 
 
