@@ -3,10 +3,7 @@
 import argparse
 import os
 
-import matplotlib.pyplot as plt
-import numpy as np
 import progressbar
-import skimage.io as io
 import tensorflow as tf
 import tensorflow.keras as keras
 
@@ -14,6 +11,7 @@ import models.losses as losses
 import models.wnet as wnet
 import utils.data as data
 import utils.utils as utils
+import utils.utils_train as utrain
 
 os.environ["CUDA_VISIBLE_DEVICES"] = "2,3"
 os.environ["TF_XLA_FLAGS"] = "--tf_xla_cpu_global_jit"
@@ -59,53 +57,12 @@ def grad(gen, wnet, image, wei, loss1, loss2, opt):
     )
 
 
-def get_checkpoint(gen_opti, wnet_opti, gen, model_wnet):  # todo : use this
-    checkpoint_dir = "./saved_models"
-    checkpoint_prefix = os.path.join(checkpoint_dir, "ckpt")
-    checkpoint = tf.train.Checkpoint(
-        generator_optimizer=gen_opti,
-        wnet_optimizer=wnet_opti,
-        generator=gen,
-        wnet=model_wnet,
-    )
-    return checkpoint, checkpoint_prefix
-
-
 def save(model, loss):
     global BEST_LOSS
     if loss < BEST_LOSS:
         utils.print_gre("Model saved")
         BEST_LOSS = loss
         model.save(PATH_SAVE)
-
-
-def visualize(gen, model_wnet, image, k, opt):
-    if k % 5 == 0 or k == 1:
-        pred = gen(image)
-        output = model_wnet(image)
-        image = (image[0] * 255).astype(np.uint8).reshape(opt.size, opt.size)
-        argmax = tf.expand_dims(tf.argmax(pred, 3), 3)
-        pred, output = (
-            (argmax[0] * 255).numpy().astype(np.uint8).reshape(opt.size, opt.size, 1),
-            (output[0] * 255).numpy().astype(np.uint8).reshape(opt.size, opt.size),
-        )
-        io.imsave("result/image" + str(k) + ".png", image)
-        io.imsave("result/pred" + str(k) + ".png", pred)
-        io.imsave("result/output" + str(k) + ".png", output)
-
-
-def plot(train, test):
-    fig, axes = plt.subplots(2, figsize=(12, 8))
-    fig.suptitle("Training Metrics")
-
-    axes[0].set_ylabel("Train Loss", fontsize=14)
-    axes[0].plot(train)
-
-    axes[1].set_ylabel("Test Loss", fontsize=14)
-    axes[1].set_xlabel("Epoch", fontsize=14)
-    axes[1].plot(test)
-    fig.savefig("plots/plot.png")
-    plt.close(fig)
 
 
 def train_step(
@@ -206,14 +163,12 @@ def train(path_imgs, opt):
         dataset_train, dataset_test, len_train, len_test = data.get_dataset(
             path_imgs, opt, mirrored_strategy
         )
-        utils.print_red("Size of training set : {}".format(len_train))
-        utils.print_red("Size of testing set : {}".format(len_test))
         shape = (opt.size, opt.size, 1)
         gen, model_wnet = wnet.wnet(input_shape=shape)
 
         optimizer_gen = tf.keras.optimizers.Adam(opt.lr)
         optimizer_wnet = tf.keras.optimizers.Adam(opt.lr)
-        checkpoint, checkpoint_path = get_checkpoint(
+        checkpoint, checkpoint_path = utrain.get_checkpoint(
             optimizer_gen, optimizer_wnet, gen, model_wnet
         )
         loss_ncut = losses.soft_n_cut_loss2
@@ -266,7 +221,7 @@ def train(path_imgs, opt):
                         epoch,
                     )
                 images = mirrored_strategy.experimental_local_results(x)
-                visualize(gen, model_wnet, images[0].numpy(), epoch + 1, opt)
+                utrain.visualize(gen, model_wnet, images[0].numpy(), epoch + 1, opt)
             # checkpoint.save(file_prefix=checkpoint_path)
             utils.print_gre(
                 "Epoch {:03d}/{:03d}: Loss: {:.3f} Test_Loss: {:.3f}".format(
@@ -276,7 +231,7 @@ def train(path_imgs, opt):
             train_loss_list.append(epoch_loss_avg.result())
             test_loss_list.append(epoch_test_loss_avg.result())
             # save(model, epoch_test_loss_avg.result())
-            plot(train_loss_list, test_loss_list)
+            utrain.plot(train_loss_list, test_loss_list)
 
 
 def get_args():

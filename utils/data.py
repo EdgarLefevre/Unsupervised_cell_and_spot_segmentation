@@ -51,12 +51,16 @@ def get_dataset(path_imgs, args, strat):
         .shuffle(10000)
         .batch(args.batch_size)
     )
+    len_train = len(dataset_train)
+    len_test = len(dataset_test)
     utils.print_gre("Dataset created !")
+    utils.print_red("Size of training set : {}".format(len_train))
+    utils.print_red("Size of testing set : {}".format(len_test))
     return (
         strat.experimental_distribute_dataset(ds_train),
         strat.experimental_distribute_dataset(ds_test),
-        len(dataset_train),
-        len(dataset_test),
+        len_train,
+        len_test,
     )
 
 
