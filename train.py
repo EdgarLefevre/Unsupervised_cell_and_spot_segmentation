@@ -231,7 +231,7 @@ def train(path_imgs, opt):
             train_loss_list.append(epoch_loss_avg.result())
             test_loss_list.append(epoch_test_loss_avg.result())
             # save(model, epoch_test_loss_avg.result())
-            utrain.plot(train_loss_list, test_loss_list)
+        utrain.plot(train_loss_list, test_loss_list)
 
 
 def get_args():
