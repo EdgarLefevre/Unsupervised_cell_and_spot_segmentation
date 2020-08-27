@@ -65,7 +65,7 @@ def save(model, loss):
         model.save(PATH_SAVE)
 
 
-def train_step(
+def _step(
     gen,
     model_wnet,
     x,
@@ -76,28 +76,19 @@ def train_step(
     optimizer_gen,
     optimizer_wnet,
     e_l_avg,
-    strat,
+    train=True,
 ):
     # with strat.scope():
     gen_loss, wnet_loss, gen_grads, wnet_grads = grad(
         gen, model_wnet, x, w, loss_ncut, loss_recons, opt
     )
-    optimizer_gen.apply_gradients(zip(gen_grads, gen.trainable_variables))
-    optimizer_wnet.apply_gradients(zip(wnet_grads, model_wnet.trainable_variables))
+    if train:
+        optimizer_gen.apply_gradients(zip(gen_grads, gen.trainable_variables))
+        optimizer_wnet.apply_gradients(zip(wnet_grads, model_wnet.trainable_variables))
     return e_l_avg(gen_loss + wnet_loss)
 
 
-def test_step(
-    gen, model_wnet, x, w, loss_ncut, loss_recons, opt, epoch_test_loss_avg, epoch
-):
-    gen_loss, wnet_loss, gen_grads, wnet_grads = grad(
-        gen, model_wnet, x, w, loss_ncut, loss_recons, opt
-    )
-    return epoch_test_loss_avg(gen_loss + wnet_loss)
-
-
-# @tf.function
-def distributed_train_step(
+def distributed_step(
     gen,
     model_wnet,
     x,
@@ -109,9 +100,10 @@ def distributed_train_step(
     optimizer_gen,
     optimizer_wnet,
     e_l_avg,
+    train=True,
 ):
     per_replica_losses = strat.run(
-        train_step,
+        _step,
         args=(
             gen,
             model_wnet,
@@ -123,38 +115,54 @@ def distributed_train_step(
             optimizer_gen,
             optimizer_wnet,
             e_l_avg,
-            strat,
+            train,
         ),
     )
-    return strat.reduce(tf.distribute.ReduceOp.MEAN, per_replica_losses, axis=None)
+    if train:
+        per_replica_losses = strat.reduce(
+            tf.distribute.ReduceOp.MEAN, per_replica_losses, axis=None
+        )
+    return per_replica_losses
 
 
-def distributed_test_step(
+def run_epoch(
+    dataset,
+    len_dataset,
     gen,
     model_wnet,
-    x,
-    w,
     loss_ncut,
     loss_recons,
-    opt,
     strat,
-    epoch_test_loss_avg,
+    o_gen,
+    o_wnet,
+    epoch_loss_avg,
     epoch,
+    train=True,
 ):
-    return strat.run(
-        test_step,
-        args=(
-            gen,
-            model_wnet,
-            x,
-            w,
-            loss_ncut,
-            loss_recons,
-            opt,
-            epoch_test_loss_avg,
-            epoch,
-        ),
-    )
+    loss = 0
+    with progressbar.ProgressBar(
+        max_value=len_dataset / opt.batch_size, widgets=widgets
+    ) as bar:
+        for i, (x, w) in enumerate(dataset):
+            bar.update(i)
+            loss += distributed_step(
+                gen,
+                model_wnet,
+                x,
+                w,
+                loss_ncut,
+                loss_recons,
+                opt,
+                strat,
+                o_gen,
+                o_wnet,
+                epoch_loss_avg,
+                train,
+            )
+    if not train:
+        images = strat.experimental_local_results(x)
+        utrain.visualize(gen, model_wnet, images[0].numpy(), epoch + 1, opt)
+    return loss
 
 
 def train(path_imgs, opt):
@@ -180,54 +188,47 @@ def train(path_imgs, opt):
 
         utils.print_gre("Training....")
         for epoch in range(opt.n_epochs):
-            train_loss = 0.0
-            test_loss = 0.0
             utils.print_gre("Epoch {}/{}:".format(epoch + 1, opt.n_epochs))
             utils.print_gre("Training data:")
-            with progressbar.ProgressBar(
-                max_value=len_train / opt.batch_size, widgets=widgets
-            ) as bar:
-                for i, (x, w) in enumerate(dataset_train):
-                    bar.update(i)
-                    train_loss += distributed_train_step(
-                        gen,
-                        model_wnet,
-                        x,
-                        w,
-                        loss_ncut,
-                        loss_recons,
-                        opt,
-                        mirrored_strategy,
-                        optimizer_gen,
-                        optimizer_wnet,
-                        epoch_loss_avg,
-                    )
+
+            train_loss = run_epoch(
+                dataset_train,
+                len_train,
+                gen,
+                model_wnet,
+                loss_ncut,
+                loss_recons,
+                mirrored_strategy,
+                optimizer_gen,
+                optimizer_wnet,
+                epoch_loss_avg,
+                epoch,
+            )
+
             utils.print_gre("Testing data:")
-            with progressbar.ProgressBar(
-                max_value=len_test / opt.batch_size, widgets=widgets
-            ) as bar2:
-                for j, (x, w) in enumerate(dataset_test):
-                    bar2.update(j)
-                    test_loss += distributed_test_step(
-                        gen,
-                        model_wnet,
-                        x,
-                        w,
-                        loss_ncut,
-                        loss_recons,
-                        opt,
-                        mirrored_strategy,
-                        epoch_test_loss_avg,
-                        epoch,
-                    )
-                images = mirrored_strategy.experimental_local_results(x)
-                utrain.visualize(gen, model_wnet, images[0].numpy(), epoch + 1, opt)
+
+            test_loss = run_epoch(
+                dataset_test,
+                len_test,
+                gen,
+                model_wnet,
+                loss_ncut,
+                loss_recons,
+                mirrored_strategy,
+                optimizer_gen,
+                optimizer_wnet,
+                epoch_loss_avg,
+                epoch,
+                False,
+            )
+
             # checkpoint.save(file_prefix=checkpoint_path)
             utils.print_gre(
                 "Epoch {:03d}/{:03d}: Loss: {:.3f} Test_Loss: {:.3f}".format(
                     epoch + 1, opt.n_epochs, train_loss, test_loss
                 )
             )
+            print(epoch_loss_avg.result())
             train_loss_list.append(epoch_loss_avg.result())
             test_loss_list.append(epoch_test_loss_avg.result())
             # save(model, epoch_test_loss_avg.result())
@@ -254,7 +255,7 @@ def get_args():
         help="Path to get imgs",
     )
     args = parser.parse_args()
-    utils.print_red("Args: "+str(args))
+    utils.print_red("Args: " + str(args))
     return args
 
 
