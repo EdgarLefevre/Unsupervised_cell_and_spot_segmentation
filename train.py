@@ -13,7 +13,7 @@ import utils.data as data
 import utils.utils as utils
 import utils.utils_train as utrain
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "2,3"
+os.environ["CUDA_VISIBLE_DEVICES"] = "4,5"
 os.environ["TF_XLA_FLAGS"] = "--tf_xla_cpu_global_jit"
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
 # loglevel : 0 all printed, 1 I not printed, 2 I and W not printed, 3 nothing printed
@@ -171,8 +171,7 @@ def train(path_imgs, opt):
         dataset_train, dataset_test, len_train, len_test = data.get_dataset(
             path_imgs, opt, mirrored_strategy
         )
-        shape = (opt.size, opt.size, 1)
-        gen, model_wnet = wnet.wnet(input_shape=shape)
+        gen, model_wnet = wnet.wnet(input_shape=(opt.size, opt.size, 1))
 
         optimizer_gen = tf.keras.optimizers.Adam(opt.lr)
         optimizer_wnet = tf.keras.optimizers.Adam(opt.lr)
@@ -228,7 +227,6 @@ def train(path_imgs, opt):
                     epoch + 1, opt.n_epochs, train_loss, test_loss
                 )
             )
-            print(epoch_loss_avg.result())
             train_loss_list.append(epoch_loss_avg.result())
             test_loss_list.append(epoch_test_loss_avg.result())
             # save(model, epoch_test_loss_avg.result())

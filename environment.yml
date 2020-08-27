@@ -83,6 +83,7 @@ dependencies:
   - oauthlib=3.0.1=py_0
   - olefile=0.46=py_0
   - openjpeg=2.3.1=h981e76c_3
+  - openssh=8.3p1=h5957347_0
   - openssl=1.1.1g=h516909a_1
   - opt_einsum=3.3.0=py_0
   - pcre=8.44=he1b5a44_0
