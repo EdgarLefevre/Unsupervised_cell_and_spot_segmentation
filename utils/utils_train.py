@@ -1,6 +1,7 @@
 #!/usr/bin/python3.6
 # -*- coding: utf-8 -*-
 import os
+import sys
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -21,7 +22,7 @@ def get_checkpoint(gen_opti, wnet_opti, gen, model_wnet):  # todo : use this
 
 
 def visualize(gen, model_wnet, image, k, opt):
-    if k % 5 == 0 or k == 1:
+    if k % 2 == 0 or k == 1:
         pred = gen(image)
         output = model_wnet(image)
         image = (image[0] * 255).astype(np.uint8).reshape(opt.size, opt.size)
@@ -47,3 +48,20 @@ def plot(train, test):
     axes[1].plot(test)
     fig.savefig("plots/plot.png")
     plt.close(fig)
+
+
+def is_nan(train_loss, test_loss, epoch):
+    if np.isnan(train_loss) or np.isnan(test_loss):
+        print(
+            "Loss is Not a Number. Train_loss: {}.  Test_loss: {}.\nEpoch {}.".format(
+                train_loss, test_loss, epoch + 1
+            )
+        )
+        sys.exit()
+
+
+def reduce_lr(epoch, decay, gen, wnet, freq=10):
+    if (epoch + 1) % freq == 0:
+        gen.learning_rate = gen.learning_rate.numpy() / decay
+        wnet.learning_rate = wnet.learning_rate.numpy() / decay
+        print("\nLearning rate is {}".format(gen.leanring_rate.numpy()))

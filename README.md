@@ -22,7 +22,7 @@ python train.py
 ## Future Work
 
 - [x] code crf
+- [ ] multigpu
+- [x] clean training loop
+- [x] Images path as arg
 - [ ] improve stability
-- [ ] why losses = nan when multigpu
-- [ ] clean training loop
-- [ ] Images path as arg

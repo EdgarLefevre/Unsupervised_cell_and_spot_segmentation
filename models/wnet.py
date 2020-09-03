@@ -6,7 +6,7 @@ import tensorflow.keras.layers as layers
 
 
 def block_down(
-    inputs, filters, drop=0.3, w_decay=0.0001, kernel_size=3, separable=False
+    inputs, filters, drop=0.2, w_decay=0.0001, kernel_size=3, separable=False
 ):
     if separable:
         x = layers.SeparableConv2D(
@@ -65,9 +65,14 @@ def bridge(inputs, filters, drop=0.2, kernel_size=3):
 
 
 def block_up(
-    input, conc, filters, drop=0.3, w_decay=0.0001, kernel_size=3, separable=False
+    input, conc, filters, drop=0.2, w_decay=0.0001, kernel_size=3, separable=False
 ):
-    x = layers.Conv2DTranspose(filters, (2, 2), strides=(2, 2), padding="same",)(input)
+    x = layers.Conv2DTranspose(
+        filters,
+        (2, 2),
+        strides=(2, 2),
+        padding="same",
+    )(input)
     for i in range(len(conc)):
         x = layers.concatenate([x, conc[i]])
     if separable:
@@ -107,25 +112,23 @@ def block_up(
 
 def unet(input_size, enc, name):
     input = layers.Input(input_size)
+    filters = 16
     # down
-    d1, c1 = block_down(input, filters=32)
-    d2, c2 = block_down(d1, filters=64, separable=True)
-    d3, c3 = block_down(d2, filters=128, separable=True)
-    d4, c4 = block_down(d3, filters=256, separable=True)
+    d1, c1 = block_down(input, filters=filters)
+    d2, c2 = block_down(d1, filters=filters * 2, separable=True)
+    d3, c3 = block_down(d2, filters=filters * 4, separable=True)
+    d4, c4 = block_down(d3, filters=filters * 8, separable=True)
 
     # bridge
-    b = bridge(d4, filters=512)
+    b = bridge(d4, filters=filters * 16)
 
     # up
-    u4 = block_up(input=b, filters=256, conc=[c4], separable=True)
-    u3 = block_up(input=u4, filters=128, conc=[c3], separable=True)
-    u2 = block_up(input=u3, filters=64, conc=[c2], separable=True)
-    u1 = block_up(input=u2, filters=32, conc=[c1])
+    u4 = block_up(input=b, filters=filters * 8, conc=[c4], separable=True)
+    u3 = block_up(input=u4, filters=filters * 4, conc=[c3], separable=True)
+    u2 = block_up(input=u3, filters=filters * 2, conc=[c2], separable=True)
+    u1 = block_up(input=u2, filters=filters, conc=[c1])
     if enc:
         output = layers.Conv2D(2, (1, 1))(u1)
-        # output = layers.Dense(units=1, activation="sigmoid")(output)
-        # output = layers.Dense(units=1, activation="softmax")(output)
-        # output = layers.Softmax()(output)
     else:
         output = layers.Conv2D(1, (1, 1))(u1)
     return keras.Model(input, output, name=name)
