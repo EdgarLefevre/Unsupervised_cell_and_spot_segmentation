@@ -52,10 +52,8 @@ def outer_product(v1, v2):
 
 
 def numerator(k_class_prob, weights):
-    """
-    k_class_prob : k_class pixelwise probability (rows*cols) tensor
-    weights : edge weights n*n tensor
-    """
+    # k_class_prob : k_class pixelwise probability (rows*cols) tensor
+    # weights : edge weights n*n tensor
     k_class_prob = tf.reshape(k_class_prob, (-1,))
     return tf.reduce_sum(
         tf.multiply(weights, outer_product(k_class_prob, k_class_prob))
@@ -63,10 +61,8 @@ def numerator(k_class_prob, weights):
 
 
 def denominator(k_class_prob, weights):
-    """
-    k_class_prob : k_class pixelwise probability (rows*cols) tensor
-    weights : edge weights	n*n tensor
-    """
+    # k_class_prob : k_class pixelwise probability (rows*cols) tensor
+    # weights : edge weights	n*n tensor
     k_class_prob = tf.cast(k_class_prob, tf.float32)
     k_class_prob = tf.reshape(k_class_prob, (-1,))
     return tf.reduce_sum(
@@ -113,7 +109,7 @@ def soft_n_cut_loss2(seg, weight, radius=5, K=2):
         for n in tf.range((radius - 1) * 2 + 1, dtype=tf.int32):
             column.append(
                 tf.identity(
-                    padded_seg[:, :, m: m + seg.shape[2], n: n + seg.shape[3]]
+                    padded_seg[:, :, m : m + seg.shape[2], n : n + seg.shape[3]]
                 )
             )
         cropped_seg.append(tf.stack(column, 4))
@@ -124,11 +120,7 @@ def soft_n_cut_loss2(seg, weight, radius=5, K=2):
     multi1 = tf.multiply(cropped_seg, t_weight)
     multi2 = tf.multiply(tf.reduce_sum(multi1), seg)
     multi3 = tf.multiply(sum_weight, seg)
-    assocA = tf.reduce_sum(tf.reshape(multi2,
-                                      (multi2.shape[1], multi2.shape[2], -1)
-                                      ))
-    assocV = tf.reduce_sum(tf.reshape(multi3,
-                                      (multi3.shape[1], multi3.shape[2], -1)
-                                      ))
+    assocA = tf.reduce_sum(tf.reshape(multi2, (multi2.shape[1], multi2.shape[2], -1)))
+    assocV = tf.reduce_sum(tf.reshape(multi3, (multi3.shape[1], multi3.shape[2], -1)))
     assoc = tf.reduce_sum(tf.realdiv(assocA, assocV))
     return tf.add(assoc, K)  #  de base -assoc mais loss neg donc assoc
