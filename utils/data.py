@@ -24,7 +24,7 @@ widgets = [
 ]
 
 
-def get_dataset(path_imgs, args, strat):
+def get_dataset(path_imgs, args):
     utils.print_gre("Creating dataset...")
     dataset = []
     file_list = utils.list_files(path_imgs)  # add [:10] to reduce dataset size
@@ -33,7 +33,6 @@ def get_dataset(path_imgs, args, strat):
         img = np.array(img).reshape(-1, args.size, args.size, 1).astype("float32")
         # rm img/255
         # -> already done ?? for 128.... strange behavior
-        img = np.rollaxis(img, 3, 1)
         dataset.append(img)
     n = range(np.shape(dataset)[0])
     n_sample = random.sample(list(n), len(n))
@@ -59,8 +58,8 @@ def get_dataset(path_imgs, args, strat):
     utils.print_red("Size of training set : {}".format(len_train))
     utils.print_red("Size of testing set : {}".format(len_test))
     return (
-        strat.experimental_distribute_dataset(ds_train),
-        strat.experimental_distribute_dataset(ds_test),
+        ds_train,
+        ds_test,
         len_train,
         len_test,
     )

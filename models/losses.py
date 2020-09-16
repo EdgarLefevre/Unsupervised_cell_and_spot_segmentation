@@ -4,7 +4,7 @@
 import tensorflow as tf
 
 
-def edge_weights(flatten_image, rows, cols, std_intensity=3.0, std_position=1.0):
+def edge_weights(flatten_image, rows, cols, std_intensity=3, std_position=1.0):
     """
     flatten_image : 1 dim tf array of the row flattened image
     ( intensity is the average of the three channels)
@@ -19,7 +19,10 @@ def edge_weights(flatten_image, rows, cols, std_intensity=3.0, std_position=1.0)
     """
     A = outer_product(flatten_image, tf.ones_like(flatten_image))
     A_T = tf.transpose(A)
-    intensity_weight = tf.exp(-1 * tf.square((tf.realdiv((A - A_T), std_intensity))))
+    intensity_weight = tf.exp(
+        -1
+        * tf.square(tf.cast((tf.realdiv((A - A_T), std_intensity)), dtype=tf.float32))
+    )
 
     xx, yy = tf.meshgrid(tf.range(rows), tf.range(cols))
     xx = tf.reshape(xx, (rows * cols,))
@@ -56,7 +59,10 @@ def numerator(k_class_prob, weights):
     # weights : edge weights n*n tensor
     k_class_prob = tf.reshape(k_class_prob, (-1,))
     return tf.reduce_sum(
-        tf.multiply(weights, outer_product(k_class_prob, k_class_prob))
+        tf.multiply(
+            weights,
+            tf.cast(outer_product(k_class_prob, k_class_prob), dtype=tf.float32),
+        )
     )
 
 
@@ -118,6 +124,40 @@ def soft_n_cut_loss2(seg, weight, radius=5, K=2):
     seg = tf.cast(seg, dtype=tf.float64)
     t_weight = tf.constant(weight)
     multi1 = tf.multiply(cropped_seg, t_weight)
+    multi2 = tf.multiply(tf.reduce_sum(multi1), seg)
+    multi3 = tf.multiply(sum_weight, seg)
+    assocA = tf.reduce_sum(tf.reshape(multi2, (multi2.shape[1], multi2.shape[2], -1)))
+    assocV = tf.reduce_sum(tf.reshape(multi3, (multi3.shape[1], multi3.shape[2], -1)))
+    assoc = tf.reduce_sum(tf.realdiv(assocA, assocV))
+    return tf.add(assoc, K)  #  de base -assoc mais loss neg donc assoc
+
+
+def soft_n_cut_loss2_multi(seg, weight, radius=5, K=2):
+    cropped_seg = []
+    sum_weight = tf.reduce_sum(weight)
+    padded_seg = tf.pad(
+        seg,
+        [
+            [radius - 1, radius - 1],
+            [radius - 1, radius - 1],
+            [radius - 1, radius - 1],
+            [radius - 1, radius - 1],
+        ],
+    )
+    for m in range((radius - 1) * 2 + 1):
+        column = []
+        for n in range((radius - 1) * 2 + 1):
+            column.append(
+                tf.identity(
+                    padded_seg[:, :, m : m + seg.shape[2], n : n + seg.shape[3]]
+                )
+            )
+        cropped_seg.append(tf.stack(column, 4))
+    cropped_seg = tf.stack(cropped_seg, 4)
+    cropped_seg = tf.cast(cropped_seg, dtype=tf.float64)
+    seg = tf.cast(seg, dtype=tf.float64)
+    # t_weight = tf.constant(weight)
+    multi1 = tf.multiply(cropped_seg, weight)
     multi2 = tf.multiply(tf.reduce_sum(multi1), seg)
     multi3 = tf.multiply(sum_weight, seg)
     assocA = tf.reduce_sum(tf.reshape(multi2, (multi2.shape[1], multi2.shape[2], -1)))

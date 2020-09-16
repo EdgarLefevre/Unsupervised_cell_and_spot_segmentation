@@ -25,7 +25,7 @@ def visualize(gen, model_wnet, image, k, opt):
     if k % 2 == 0 or k == 1:
         pred = gen(image)
         output = model_wnet(image)
-        image = (image[0] * 255).astype(np.uint8).reshape(opt.size, opt.size)
+        image = (image.numpy() * 255).astype(np.uint8).reshape(opt.size, opt.size)
         argmax = tf.expand_dims(tf.argmax(pred, 3), 3)
         pred, output = (
             (argmax[0] * 255).numpy().astype(np.uint8).reshape(opt.size, opt.size, 1),
@@ -64,4 +64,4 @@ def reduce_lr(epoch, decay, gen, wnet, freq=10):
     if (epoch + 1) % freq == 0:
         gen.learning_rate = gen.learning_rate.numpy() / decay
         wnet.learning_rate = wnet.learning_rate.numpy() / decay
-        print("\nLearning rate is {}".format(gen.leanring_rate.numpy()))
+        print("\nLearning rate is {}".format(gen.learning_rate.numpy()))
