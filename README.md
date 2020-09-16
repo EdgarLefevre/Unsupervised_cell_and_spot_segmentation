@@ -9,14 +9,14 @@ Experiments to segment cell and spot images without labels.
 ## Installation
 
 ```sh
-conda env create -f env.yaml
-pre-commit install
+conda env create -f environment.yml
+pre-commit install # for devs
 ```
 
 ## Usage
 
 ```sh
-python train.py
+python train_singlegpu.py
 ```
 
 ## Future Work
