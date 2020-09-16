@@ -5,7 +5,8 @@
 [![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit&logoColor=white)](https://github.com/pre-commit/pre-commit)
 
 
-Experiments to segment cell and spot images without labels.
+Wnet implementation with tensorflow 2, experiment to segment cell and spot data without labels.
+
 ## Installation
 
 ```sh
@@ -16,13 +17,22 @@ pre-commit install # for devs
 ## Usage
 
 ```sh
-python train_singlegpu.py
+python train_singlegpu.py  # if you want to run on a singlegpu
+python train_multigpu.py  # if you want to run on several gpus
+```
+
+## Setting up gpu
+
+To use a gpu you have to set the system variable `CUDA_VISIBLE_DEVICES` and assign the ids of the gpus you want to use:
+```python
+os.environ["CUDA_VISIBLE_DEVICES"] = "0" # gpu id
+os.environ["CUDA_VISIBLE_DEVICES"] = "0,1,2" # gpu ids
 ```
 
 ## Future Work
 
-- [x] code crf
-- [ ] multigpu
-- [x] clean training loop
-- [x] Images path as arg
+- [x] soft n cut loss
+- [x] multigpu
 - [ ] improve stability
+- [ ] result folder as path
+- [ ] inference
