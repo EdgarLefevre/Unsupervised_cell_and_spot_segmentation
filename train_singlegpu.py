@@ -1,6 +1,5 @@
 #!/usr/bin/python3.6
 # -*- coding: utf-8 -*-
-import argparse
 import math
 import os
 
@@ -173,32 +172,6 @@ def train():
         utrain.plot(train_loss_list, test_loss_list)
 
 
-def get_args():
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--n_epochs", type=int, default=50, help="number of epochs of training"
-    )
-    parser.add_argument(
-        "--batch_size", type=int, default=12, help="size of the batches"
-    )
-    parser.add_argument("--lr", type=float, default=0.001, help="adam: learning rate")
-    parser.add_argument(
-        "--size", type=int, default=128, help="Size of the image, one number"
-    )
-    parser.add_argument(
-        "--patience", type=int, default=10, help="Set patience value for early stopper"
-    )
-    parser.add_argument(
-        "--img_path",
-        type=str,
-        default="/home/elefevre/Datasets/Unsupervised_cell_and_spot_segmentation/Data_Eduardo/cell/patched_128/",  # noqa
-        help="Path to get imgs",
-    )
-    args = parser.parse_args()
-    utils.print_red("Args: " + str(args))
-    return args
-
-
 if __name__ == "__main__":
-    opt = get_args()
+    opt = utils.get_args()
     train()

@@ -28,6 +28,7 @@ To use a gpu you have to set the system variable `CUDA_VISIBLE_DEVICES` and assi
 os.environ["CUDA_VISIBLE_DEVICES"] = "0" # gpu id
 os.environ["CUDA_VISIBLE_DEVICES"] = "0,1,2" # gpu ids
 ```
+This line of code is at the begining of the train scripts, change it in function of your architecture and the number of gpus you want to use.
 
 ## Future Work
 
