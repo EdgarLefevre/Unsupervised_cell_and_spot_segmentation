@@ -28,9 +28,7 @@ def get_args():
     parser.add_argument(
         "--n_epochs", type=int, default=150, help="number of epochs of training"
     )
-    parser.add_argument(
-        "--batch_size", type=int, default=5, help="size of the batches"
-    )
+    parser.add_argument("--batch_size", type=int, default=5, help="size of the batches")
     parser.add_argument("--lr", type=float, default=0.001, help="adam: learning rate")
     parser.add_argument(
         "--size", type=int, default=128, help="Size of the image, one number"

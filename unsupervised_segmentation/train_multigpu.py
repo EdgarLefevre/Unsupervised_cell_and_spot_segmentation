@@ -3,12 +3,11 @@
 import math
 import os
 
+import models.losses as losses
+import models.wnet as wnet
 import progressbar
 import tensorflow as tf
 import tensorflow.keras as keras
-
-import models.losses as losses
-import models.wnet as wnet
 import utils.data as data
 import utils.utils as utils
 import utils.utils_train as utrain

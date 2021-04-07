@@ -105,7 +105,7 @@ def run_epoch(
 ):
     loss = 0
     with progressbar.ProgressBar(
-        max_value=len_dataset, widgets=widgets #todo: change this
+        max_value=len_dataset, widgets=widgets  # todo: change this
     ) as bar:
         for i, (x, w) in enumerate(dataset):
             bar.update(i)

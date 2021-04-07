@@ -23,7 +23,14 @@ def multi_process_fun(file_list, function):
     for worker_num in range(num_workers):
         process = multiprocessing.Process(
             target=function,
-            args=([file_list[worker_amount * worker_num: worker_amount * worker_num + worker_amount]]),
+            args=(
+                [
+                    file_list[
+                        worker_amount * worker_num : worker_amount * worker_num
+                        + worker_amount
+                    ]
+                ]
+            ),
         )
         processes.append(process)
         process.start()
@@ -56,7 +63,7 @@ def patch(im, size, nb_patch):
     i = 0
     x_im = np.shape(im)[0]
     y_im = np.shape(im)[1]
-    while i < nb_patch-1:
+    while i < nb_patch - 1:
         patch_list.append(im[xmin:xmax, ymin:ymax])
         xmin += size
         xmax += size

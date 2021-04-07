@@ -122,7 +122,6 @@ def get_weights(raw_data):
 
 
 class Dataset(keras.utils.Sequence):
-
     def __init__(
         self,
         batch_size,
@@ -143,12 +142,21 @@ class Dataset(keras.utils.Sequence):
         For wnet -> should return only x+weight map (couple)
         """
         i = idx * self.batch_size
-        batch_input_img_paths = self.input_img_paths[i: i + self.batch_size]
+        batch_input_img_paths = self.input_img_paths[i : i + self.batch_size]
         x = np.zeros(
             (self.batch_size, self.img_size, self.img_size, 1), dtype="float32"
         )
         for j, path in enumerate(batch_input_img_paths):
-            img = np.array(load_img(path, color_mode="grayscale", target_size=(self.img_size, self.img_size))) / 255
+            img = (
+                np.array(
+                    load_img(
+                        path,
+                        color_mode="grayscale",
+                        target_size=(self.img_size, self.img_size),
+                    )
+                )
+                / 255
+            )
             x[j] = np.expand_dims(img, 2)
         w = get_weights(x)
         return x, w
