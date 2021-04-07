@@ -13,7 +13,7 @@ import unsupervised_segmentation.utils.data as data
 import unsupervised_segmentation.utils.utils as utils
 import unsupervised_segmentation.utils.utils_train as utrain
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "5"
+# os.environ["CUDA_VISIBLE_DEVICES"] = "5"
 os.environ["TF_XLA_FLAGS"] = "--tf_xla_cpu_global_jit"
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
 # loglevel : 0 all printed, 1 I not printed, 2 I and W not printed, 3 nothing printed
@@ -105,7 +105,7 @@ def run_epoch(
 ):
     loss = 0
     with progressbar.ProgressBar(
-        max_value=len_dataset / opt.batch_size, widgets=widgets
+        max_value=len_dataset, widgets=widgets #todo: change this
     ) as bar:
         for i, (x, w) in enumerate(dataset):
             bar.update(i)
@@ -127,9 +127,11 @@ def run_epoch(
 
 
 def train():
-    dataset_train, dataset_test, len_train, len_test = data.get_dataset(
-        opt.img_path, opt
-    )
+    # dataset_train, dataset_test, len_train, len_test = data.get_dataset(
+    #     opt.img_path, opt
+    # )
+    img_path_list = utils.list_files_path(opt.img_path)
+    dataset_train = data.Dataset(opt.batch_size, opt.size, img_path_list)
     gen, model_wnet = wnet.wnet(input_shape=(opt.size, opt.size, 1))
     optimizer_gen = tf.keras.optimizers.Adam(opt.lr)
     optimizer_wnet = tf.keras.optimizers.Adam(opt.lr)
@@ -141,34 +143,34 @@ def train():
         utils.print_gre("Training data:")
         train_loss = run_epoch(
             dataset_train,
-            len_train,
+            len(dataset_train),
             gen,
             model_wnet,
             optimizer_gen,
             optimizer_wnet,
             epoch,
         )
-        utils.print_gre("Testing data:")
-        test_loss = run_epoch(
-            dataset_test,
-            len_test,
-            gen,
-            model_wnet,
-            optimizer_gen,
-            optimizer_wnet,
-            epoch,
-            False,
-        )
-        utils.print_gre(
-            "Epoch {:03d}/{:03d}: Loss: {:.3f} Test_Loss: {:.3f}".format(
-                epoch + 1, opt.n_epochs, train_loss, test_loss
-            )
-        )
+        # utils.print_gre("Testing data:")
+        # test_loss = run_epoch(
+        #     dataset_test,
+        #     len_test,
+        #     gen,
+        #     model_wnet,
+        #     optimizer_gen,
+        #     optimizer_wnet,
+        #     epoch,
+        #     False,
+        # )
+        # utils.print_gre(
+        #     "Epoch {:03d}/{:03d}: Loss: {:.3f} Test_Loss: {:.3f}".format(
+        #         epoch + 1, opt.n_epochs, train_loss, test_loss
+        #     )
+        # )
         train_loss_list.append(train_loss)
-        test_loss_list.append(test_loss)
-        utrain.is_nan(train_loss, test_loss, epoch)
+        # test_loss_list.append(test_loss)
+        # utrain.is_nan(train_loss, test_loss, epoch)
         utrain.reduce_lr(epoch, 10, optimizer_gen, optimizer_wnet)
-        save(gen, model_wnet, test_loss, PATH_SAVE_gen, PATH_SAVE_wnet)
+        # save(gen, model_wnet, test_loss, PATH_SAVE_gen, PATH_SAVE_wnet)
         utrain.plot(train_loss_list, test_loss_list)
 
 
