@@ -115,8 +115,8 @@ def get_weights(raw_data):
         tmp_weight = cal_weight(batch, batch.shape)
         weight = cp.asnumpy(tmp_weight)
         weights.append(weight)
-        # del tmp_weight
-    # cp.get_default_memory_pool().free_all_blocks()
+        del tmp_weight
+    cp.get_default_memory_pool().free_all_blocks()
     # utils.print_gre("Weights calculated.")
     return weights
 

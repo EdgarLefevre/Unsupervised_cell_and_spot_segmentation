@@ -5,7 +5,6 @@ import sys
 
 import matplotlib.pyplot as plt
 import numpy as np
-import skimage.io as io
 import tensorflow as tf
 
 
@@ -31,9 +30,27 @@ def visualize(gen, model_wnet, image, k, opt):
             (argmax[0] * 255).numpy().astype(np.uint8).reshape(opt.size, opt.size, 1),
             (output[0] * 255).numpy().astype(np.uint8).reshape(opt.size, opt.size),
         )
-        io.imsave("result/image" + str(k) + ".png", image)
-        io.imsave("result/pred" + str(k) + ".png", pred)
-        io.imsave("result/output" + str(k) + ".png", output)
+        # io.imsave("result/image" + str(k) + ".png", image)
+        # io.imsave("result/pred" + str(k) + ".png", pred)
+        # io.imsave("result/output" + str(k) + ".png", output)
+        plot_images(image, pred, output, k)
+
+
+def plot_images(img, pred, output, k):
+    fig = plt.figure(figsize=(15, 10))
+    columns = 3
+    rows = 1
+    ax = []
+    ax.append(fig.add_subplot(rows, columns, 1))
+    ax[-1].set_title("Input")
+    plt.imshow(img, cmap="gray")
+    ax.append(fig.add_subplot(rows, columns, 1))
+    ax[-1].set_title("Mask")
+    plt.imshow(pred, cmap="gray")
+    ax.append(fig.add_subplot(rows, columns, 1))
+    ax[-1].set_title("Output")
+    plt.imshow(output, cmap="gray")
+    plt.savefig("result/epoch_" + str(k) + ".png")
 
 
 def plot(train, test):
