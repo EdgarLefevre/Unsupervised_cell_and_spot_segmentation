@@ -44,13 +44,14 @@ def plot_images(img, pred, output, k):
     ax.append(fig.add_subplot(rows, columns, 1))
     ax[-1].set_title("Input")
     plt.imshow(img, cmap="gray")
-    ax.append(fig.add_subplot(rows, columns, 1))
+    ax.append(fig.add_subplot(rows, columns, 2))
     ax[-1].set_title("Mask")
     plt.imshow(pred, cmap="gray")
-    ax.append(fig.add_subplot(rows, columns, 1))
+    ax.append(fig.add_subplot(rows, columns, 3))
     ax[-1].set_title("Output")
     plt.imshow(output, cmap="gray")
     plt.savefig("result/epoch_" + str(k) + ".png")
+    plt.close()
 
 
 def plot(train, test):

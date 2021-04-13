@@ -1,18 +1,11 @@
 #!/usr/bin/python3.8
 # -*- coding: utf-8 -*-
 
-import random
-
 import cupy as cp
 import numpy as np
 import progressbar
-import skimage.io as io
-import sklearn.model_selection as sk
-import tensorflow as tf
 import tensorflow.keras as keras
 from tensorflow.keras.preprocessing.image import load_img
-
-import unsupervised_segmentation.utils.utils as utils
 
 # widget list for the progress bar
 widgets = [
@@ -24,47 +17,6 @@ widgets = [
     progressbar.ETA(),
     ") ",
 ]
-
-
-def get_dataset(path_imgs, args):
-    utils.print_gre("Creating dataset...")
-    dataset = []
-    file_list = utils.list_files(path_imgs)  # add [:10] to reduce dataset size
-    for file in file_list:
-        img = io.imread(path_imgs + file, plugin="tifffile")
-        img = np.array(img).reshape(-1, args.size, args.size, 1).astype("float32")
-        # rm img/255
-        # -> already done ?? for 128.... strange behavior
-        dataset.append(img)
-    n = range(np.shape(dataset)[0])
-    n_sample = random.sample(list(n), len(n))
-    dataset = np.array(dataset)
-    dataset = dataset.reshape(-1, args.size, args.size, 1)[n_sample]
-    weights = get_weights(dataset)
-    dataset_train, dataset_test, weights_train, weights_test = sk.train_test_split(
-        dataset, weights, test_size=0.2, random_state=42
-    )
-    len_train = len(dataset_train)
-    len_test = len(dataset_test)
-    ds_train = (
-        tf.data.Dataset.from_tensor_slices((dataset_train, weights_train))
-        .shuffle(len_train)
-        .batch(args.batch_size)
-    )
-    ds_test = (
-        tf.data.Dataset.from_tensor_slices((dataset_test, weights_test))
-        .shuffle(len_test)
-        .batch(args.batch_size)
-    )
-    utils.print_gre("Dataset created !")
-    utils.print_red("Size of training set : {}".format(len_train))
-    utils.print_red("Size of testing set : {}".format(len_test))
-    return (
-        ds_train,
-        ds_test,
-        len_train,
-        len_test,
-    )
 
 
 def cal_weight(raw_data, shape, radius=5, sigmaI=10, sigmaX=4):
@@ -104,20 +56,17 @@ def cal_weight(raw_data, shape, radius=5, sigmaI=10, sigmaX=4):
 
 
 def get_weights(raw_data):
-    # utils.print_gre("Calculating weights...")
     weights = []
-    # raw_data = np.rollaxis(raw_data, 3, 1)
     shape = raw_data.shape
-    # with progressbar.ProgressBar(max_value=shape[0], widgets=widgets) as bar:
-    for batch_id in range(0, shape[0]):
-        # bar.update(batch_id)
-        batch = raw_data[batch_id : min(shape[0], batch_id + 1)]
-        tmp_weight = cal_weight(batch, batch.shape)
+    for img in raw_data:
+        img = cp.expand_dims(img, axis=0)
+        sigI = cp.sum((img - cp.mean(img)) ** 2) / (shape[1] * shape[2])
+        tmp_weight = cal_weight(img, img.shape, sigmaI=sigI)
         weight = cp.asnumpy(tmp_weight)
         weights.append(weight)
         del tmp_weight
+        del weight
     cp.get_default_memory_pool().free_all_blocks()
-    # utils.print_gre("Weights calculated.")
     return weights
 
 
@@ -160,3 +109,43 @@ class Dataset(keras.utils.Sequence):
             x[j] = np.expand_dims(img, 2)
         w = get_weights(x)
         return x, w
+
+
+class Dataset2(keras.utils.Sequence):
+    def __init__(
+        self,
+        batch_size,
+        img_size,
+        input_img_paths,
+    ):
+        self.batch_size = batch_size
+        self.img_size = img_size
+        self.input_img_paths = input_img_paths
+
+    def __len__(self):
+        return len(self.input_img_paths) // self.batch_size
+
+    def __getitem__(self, idx):
+        """
+        Returns tuple (input, target) correspond to batch #idx.
+
+        For wnet -> should return only x+weight map (couple)
+        """
+        i = idx * self.batch_size
+        batch_input_img_paths = self.input_img_paths[i : i + self.batch_size]
+        x = np.zeros(
+            (self.batch_size, self.img_size, self.img_size, 1), dtype="float32"
+        )
+        for j, path in enumerate(batch_input_img_paths):
+            img = (
+                np.array(
+                    load_img(
+                        path,
+                        color_mode="grayscale",
+                        target_size=(self.img_size, self.img_size),
+                    )
+                )
+                / 255
+            )
+            x[j] = np.expand_dims(img, 2)
+        return x

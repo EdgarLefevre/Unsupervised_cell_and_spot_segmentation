@@ -9,7 +9,7 @@ def edge_weights(flatten_image, rows, cols, std_intensity=3, std_position=1.0):
     flatten_image : 1 dim tf array of the row flattened image
     ( intensity is the average of the three channels)
     std_intensity : standard deviation for intensity
-    std_position : standard devistion for position
+    std_position : standard deviation for position
     rows : rows of the original image (unflattened image)
     cols : cols of the original image (unflattened image)
     Output :
@@ -78,7 +78,7 @@ def denominator(k_class_prob, weights):
     )
 
 
-def soft_n_cut_loss(flatten_image, prob, k, rows, cols):
+def soft_n_cut_loss_(flatten_image, prob, k, rows, cols):
     """
     Inputs:
     prob : (rows*cols*k) tensor
@@ -95,6 +95,17 @@ def soft_n_cut_loss(flatten_image, prob, k, rows, cols):
     weights = edge_weights(flatten_image, rows, cols)
     for t in range(k):
         loss = loss - (numerator(prob, weights) / denominator(prob, weights))
+    return loss
+
+
+def soft_n_cut_loss(inputs, segmentations):
+    # We don't do n_cut_loss batch wise -- split it up and do it instance wise
+    loss = 0
+    for i in range(inputs.shape[0]):
+        flatten_image = tf.reduce_mean(inputs[i], axis=-1)
+        flatten_image = tf.reshape(flatten_image, (flatten_image.shape[0] ** 2))
+        loss += soft_n_cut_loss_(flatten_image, segmentations[i], 1, 128, 128)
+    loss = loss / inputs.shape[0]
     return loss
 
 
