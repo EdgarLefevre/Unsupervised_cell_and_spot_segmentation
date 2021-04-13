@@ -3,6 +3,11 @@
 import math
 import os
 
+# os.environ["CUDA_VISIBLE_DEVICES"] = "5"
+os.environ["TF_XLA_FLAGS"] = "--tf_xla_cpu_global_jit"
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
+# loglevel : 0 all printed, 1 I not printed, 2 I and W not printed, 3 nothing printed
+
 import progressbar
 import sklearn.model_selection as sk
 import tensorflow as tf
@@ -14,10 +19,7 @@ import unsupervised_segmentation.utils.data as data
 import unsupervised_segmentation.utils.utils as utils
 import unsupervised_segmentation.utils.utils_train as utrain
 
-# os.environ["CUDA_VISIBLE_DEVICES"] = "5"
-os.environ["TF_XLA_FLAGS"] = "--tf_xla_cpu_global_jit"
-os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
-# loglevel : 0 all printed, 1 I not printed, 2 I and W not printed, 3 nothing printed
+
 
 
 # widget list for the progress bar
