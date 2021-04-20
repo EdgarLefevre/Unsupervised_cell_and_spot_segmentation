@@ -39,7 +39,7 @@ def get_args():
     parser.add_argument(
         "--img_path",
         type=str,
-        default="/home/edgar/Documents/Datasets/JB/good/",  # noqa
+        default="/home/edgar/Documents/Datasets/JB/small/",  # noqa
         # default="/home/elefevre/Datasets/JB/good/",  # noqa
         help="Path to get imgs",
     )

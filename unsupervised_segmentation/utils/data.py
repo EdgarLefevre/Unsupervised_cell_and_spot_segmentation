@@ -1,6 +1,8 @@
 #!/usr/bin/python3.8
 # -*- coding: utf-8 -*-
 
+import time
+
 import cupy as cp
 import matplotlib.pyplot as plt
 import numpy as np
@@ -112,7 +114,10 @@ class Dataset(keras.utils.Sequence):
             )
             x[j] = np.expand_dims(img, 2)
         # w = get_weights(x)
-        w = ncuts.process_weight(x)
+        start = time.time()
+        w = ncuts.process_weight_multi(x)
+        end = time.time()
+        print("process weight time: ", end - start)
         return tf.constant(x), w
 
 
@@ -134,7 +139,10 @@ def get_new_dataset(data_dir, img_size=128, batch_size=5):
         # load the raw data from the file as a string
         img = tf.io.read_file(file_path)
         img = decode_img(img)
+        start = time.time()
         wei = ncuts.process_weight(img)
+        end = time.time()
+        print("process weight time: ", end - start)
         return img, wei
 
     # Set `num_parallel_calls` so multiple images are loaded/processed in parallel.
@@ -144,7 +152,7 @@ def get_new_dataset(data_dir, img_size=128, batch_size=5):
     val_ds = val_ds.map(process_path, num_parallel_calls=tf.data.experimental.AUTOTUNE)
 
     def configure_for_performance(ds):
-        # ds = ds.cache()
+        ds = ds.cache()
         ds = ds.shuffle(buffer_size=1000)
         ds = ds.batch(batch_size)
         ds = ds.prefetch(buffer_size=tf.data.experimental.AUTOTUNE)

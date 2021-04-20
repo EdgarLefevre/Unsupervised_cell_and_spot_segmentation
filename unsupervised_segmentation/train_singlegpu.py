@@ -47,6 +47,7 @@ def loss(gen, wnet, image, wei):
         loss_recons(keras.backend.flatten(image), keras.backend.flatten(output)),
         dtype=tf.double,
     )
+    # utils.print_gre("Train: Gen Loss: {:.3f} Reconstruction Loss: {:.3f}".format(gen_loss, wnet_loss))
     return gen_loss, wnet_loss
 
 
@@ -117,7 +118,7 @@ def run_epoch(
             loss_gen += l_gen
             loss_recons += l_recons
     if not train:
-        x = tf.convert_to_tensor(x[0].reshape(-1, 128, 128, 1), dtype=tf.float32)
+        x = tf.reshape(x[0], (-1, 128, 128, 1))
         utrain.visualize(gen, model_wnet, x, epoch + 1, opt)
     return l_gen, l_recons
 
@@ -158,15 +159,15 @@ def run_epoch2(
 
 
 def train():
-    # img_path_list = utils.list_files_path(opt.img_path)
-    # # not good if we need to do metrics
-    # img_train, img_test = sk.train_test_split(
-    #     img_path_list, test_size=0.2, random_state=42
-    # )
-    #
-    # dataset_train = data.Dataset(opt.batch_size, opt.size, img_train)
-    # dataset_test = data.Dataset(opt.batch_size, opt.size, img_test)
-    dataset_train, dataset_test = data.get_new_dataset(opt.img_path)
+    img_path_list = utils.list_files_path(opt.img_path)
+    # not good if we need to do metrics
+    img_train, img_test = sk.train_test_split(
+        img_path_list, test_size=0.2, random_state=42
+    )
+
+    dataset_train = data.Dataset(opt.batch_size, opt.size, img_train)
+    dataset_test = data.Dataset(opt.batch_size, opt.size, img_test)
+    # dataset_train, dataset_test = data.get_new_dataset(opt.img_path)
     gen, model_wnet = wnet.wnet(input_shape=(opt.size, opt.size, 1))
     optimizer_gen = tf.keras.optimizers.Adam(opt.lr)
     optimizer_wnet = tf.keras.optimizers.Adam(opt.lr)
@@ -176,7 +177,7 @@ def train():
     for epoch in range(opt.n_epochs):
         utils.print_gre("Epoch {}/{}:".format(epoch + 1, opt.n_epochs))
         utils.print_gre("Training data:")
-        gen_loss, recons_loss = run_epoch2(
+        gen_loss, recons_loss = run_epoch(
             dataset_train,
             gen,
             model_wnet,
@@ -207,7 +208,7 @@ def train():
         train_loss_list.append(gen_loss)
         test_loss_list.append(gen_loss_t)
         utrain.is_nan(gen_loss, gen_loss_t, epoch)
-        utrain.reduce_lr(epoch, 10, optimizer_gen, optimizer_wnet)
+        # utrain.reduce_lr(epoch, 10, optimizer_gen, optimizer_wnet)
         save(gen, model_wnet, gen_loss_t, PATH_SAVE_gen, PATH_SAVE_wnet)
         utrain.plot(train_loss_list, test_loss_list)
 

@@ -1,5 +1,6 @@
 import os
 
+import cupy as cp
 import numpy as np
 import tensorflow as tf
 
@@ -19,8 +20,8 @@ def sparse_tensor_dense_tensordot(sp_a, b, axes):
             axes = [i if i >= 0 else i + len(shape_a) for i in axes]
             free = [i for i in range(len(shape_a)) if i not in axes]
             free_dims = [shape_a[i] for i in free]
-            prod_free = int(np.prod([shape_a[i] for i in free]))
-            prod_axes = int(np.prod([shape_a[i] for i in axes]))
+            prod_free = int(cp.prod(cp.array([shape_a[i] for i in free])))
+            prod_axes = int(cp.prod(cp.array([shape_a[i] for i in axes])))
             perm = list(axes) + free if flipped else free + list(axes)
             new_shape = [prod_axes, prod_free] if flipped else [prod_free, prod_axes]
             reshaped_a = tf.reshape(tf.transpose(a, perm), new_shape)
@@ -93,8 +94,8 @@ def sparse_tensor_dense_tensordot(sp_a, b, axes):
             axes = [i if i >= 0 else i + len(shape_a) for i in axes]
             free = [i for i in range(len(shape_a)) if i not in axes]
             free_dims = [shape_a[i] for i in free]
-            prod_free = int(np.prod([shape_a[i] for i in free]))
-            prod_axes = int(np.prod([shape_a[i] for i in axes]))
+            prod_free = int(cp.prod(cp.array([shape_a[i] for i in free])))
+            prod_axes = int(cp.prod(cp.array([shape_a[i] for i in axes])))
             perm = list(axes) + free if flipped else free + list(axes)
             new_shape = [prod_axes, prod_free] if flipped else [prod_free, prod_axes]
             reshaped_a = tf.sparse.reshape(tf.sparse.transpose(a, perm), new_shape)
@@ -196,10 +197,10 @@ def sparse_tensor_dense_tensordot(sp_a, b, axes):
 
 def circular_neighbor(index_centor, r, image_shape):
     xc, yc = index_centor
-    x = np.arange(0, 2 * r + 1)
-    y = np.arange(0, 2 * r + 1)
-    in_circle = ((x[np.newaxis, :] - r) ** 2 + (y[:, np.newaxis] - r) ** 2) < r ** 2
-    in_cir_x, in_cir_y = np.nonzero(in_circle)
+    x = cp.arange(0, 2 * r + 1)
+    y = cp.arange(0, 2 * r + 1)
+    in_circle = ((x[cp.newaxis, :] - r) ** 2 + (y[:, cp.newaxis] - r) ** 2) < r ** 2
+    in_cir_x, in_cir_y = cp.nonzero(in_circle)
     in_cir_x += xc - r
     in_cir_y += yc - r
     x_in_array = (0 <= in_cir_x) * (in_cir_x < image_shape[0])
@@ -212,17 +213,17 @@ def gaussian_neighbor(image_shape, sigma_X=4, r=5):
     row_lst, col_lst, val_lst = [], [], []
     for i, (a, b) in enumerate(np.ndindex(*image_shape)):
         neighbor_x, neighbor_y = circular_neighbor((a, b), r, image_shape)
-        neighbor_value = np.exp(
+        neighbor_value = cp.exp(
             -((neighbor_x - a) ** 2 + (neighbor_y - b) ** 2) / sigma_X ** 2
         )
-        ravel_index = np.ravel_multi_index([neighbor_x, neighbor_y], image_shape)
-        row_lst.append(np.array([i] * len(neighbor_x)))
+        ravel_index = cp.ravel_multi_index([neighbor_x, neighbor_y], image_shape)
+        row_lst.append(cp.array([i] * len(neighbor_x)))
         col_lst.append(ravel_index)
         val_lst.append(neighbor_value)
-    rows = np.hstack(row_lst)
-    cols = np.hstack(col_lst)
-    indeces = np.vstack([rows, cols]).T.astype(np.int64)
-    vals = np.hstack(val_lst).astype(np.float)
+    rows = cp.hstack(row_lst)
+    cols = cp.hstack(col_lst)
+    indeces = cp.vstack([rows, cols]).T.astype(cp.int64)
+    vals = cp.hstack(val_lst).astype(cp.float)
     return indeces, vals
 
 
@@ -232,16 +233,18 @@ def brightness_weight(image, neighbor_filter, weight_shapes, sigma_I=0.05):
     cols = indeces[:, 1]
     image = tf.reshape(image, shape=(-1, weight_shapes))
     image = tf.transpose(image, [1, 0])
-    i_embedding = tf.nn.embedding_lookup(image, rows)
-    j_embedding = tf.nn.embedding_lookup(image, cols)
+    i_embedding = tf.nn.embedding_lookup(image, rows.get())
+    j_embedding = tf.nn.embedding_lookup(image, cols.get())
     Fi = tf.transpose(i_embedding, [1, 0])  # [B, #elements]
     Fj = tf.transpose(j_embedding, [1, 0])  # [B, #elements]
-    bright_weight = tf.exp(-((Fi - Fj) ** 2) / sigma_I ** 2) * vals
+
+    bright_weight = tf.exp(-((Fi - Fj) ** 2) / sigma_I ** 2) * vals.get()
     bright_weight = tf.transpose(bright_weight, [1, 0])  # [#elements, B]
     return bright_weight
 
 
 def convert_to_batchTensor(indeces, batch_values, dense_shape):
+    indeces = indeces.get()
     batch_size = tf.cast(tf.shape(batch_values)[1], tf.int64)
     num_element = tf.cast(tf.shape(indeces)[0], tf.int64)
     # Expand indeces, values
