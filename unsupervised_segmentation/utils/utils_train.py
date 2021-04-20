@@ -46,7 +46,7 @@ def plot_images(img, pred, output, k):
     plt.imshow(img, cmap="gray")
     ax.append(fig.add_subplot(rows, columns, 2))
     ax[-1].set_title("Mask")
-    plt.imshow(pred, cmap="gray")
+    plt.imshow((pred), cmap="gray")
     ax.append(fig.add_subplot(rows, columns, 3))
     ax[-1].set_title("Output")
     plt.imshow(output, cmap="gray")

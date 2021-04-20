@@ -1,6 +1,7 @@
 #!/usr/bin/python3.6
 # -*- coding: utf-8 -*-
 
+import numpy as np
 import tensorflow as tf
 
 
@@ -112,6 +113,48 @@ def soft_n_cut_loss(inputs, segmentations):
 def soft_n_cut_loss2(seg, weight, radius=5, K=2):
     cropped_seg = []
     sum_weight = tf.reduce_sum(weight)
+    print("wei", weight)
+    print("swei", sum_weight)
+    # sum_weight = weight
+    padded_seg = tf.pad(
+        seg,
+        [
+            [0, 0],
+            [radius - 1, radius - 1],
+            [radius - 1, radius - 1],
+            [0, 0],
+        ],
+    )
+    for m in tf.range((radius - 1) * 2 + 1, dtype=tf.int32):
+        column = []
+        for n in tf.range((radius - 1) * 2 + 1, dtype=tf.int32):
+            column.append(
+                tf.identity(
+                    padded_seg[:, m : m + seg.shape[1], n : n + seg.shape[2], :]
+                )
+            )
+        cropped_seg.append(column)
+    # cropped_seg = tf.stack(cropped_seg, 4)
+    cropped_seg = tf.cast(
+        cropped_seg, dtype=tf.float64
+    )  # shape chelou + small values -> nan
+    # print(cropped_seg)
+
+    seg = tf.cast(seg, dtype=tf.float64)
+    t_weight = tf.constant(weight)  # shape good mais full 0
+    multi1 = tf.multiply(cropped_seg, t_weight)  # shape chelou et full 0
+    multi2 = tf.multiply(tf.reduce_sum(multi1), seg)
+    multi3 = tf.multiply(sum_weight, seg)
+    assocA = tf.reduce_sum(tf.reshape(multi2, (multi2.shape[1], multi2.shape[2], -1)))
+    assocV = tf.reduce_sum(tf.reshape(multi3, (multi3.shape[1], multi3.shape[2], -1)))
+    assoc = tf.reduce_sum(tf.realdiv(assocA, assocV))
+    return tf.add(assoc, K)  # de base -assoc mais loss neg donc assoc
+
+
+"""
+def soft_n_cut_loss2(seg, weight, radius=5, K=2):
+    cropped_seg = []
+    sum_weight = tf.reduce_sum(weight)
     padded_seg = tf.pad(
         seg,
         [
@@ -140,7 +183,8 @@ def soft_n_cut_loss2(seg, weight, radius=5, K=2):
     assocA = tf.reduce_sum(tf.reshape(multi2, (multi2.shape[1], multi2.shape[2], -1)))
     assocV = tf.reduce_sum(tf.reshape(multi3, (multi3.shape[1], multi3.shape[2], -1)))
     assoc = tf.reduce_sum(tf.realdiv(assocA, assocV))
-    return tf.add(assoc, K)  #  de base -assoc mais loss neg donc assoc
+    return tf.add(assoc, K)  #  de base -assoc mais loss neg donc assoc
+"""
 
 
 def soft_n_cut_loss2_multi(seg, weight, radius=5, K=2):

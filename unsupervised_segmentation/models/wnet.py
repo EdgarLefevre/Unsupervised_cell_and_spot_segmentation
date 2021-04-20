@@ -112,7 +112,7 @@ def block_up(
 
 def unet(input_size, enc, name):
     input = layers.Input(input_size)
-    filters = 16
+    filters = 8
     # down
     d1, c1 = block_down(input, filters=filters)
     d2, c2 = block_down(d1, filters=filters * 2, separable=True)
