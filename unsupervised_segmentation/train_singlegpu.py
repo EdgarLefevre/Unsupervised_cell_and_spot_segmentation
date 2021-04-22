@@ -119,7 +119,7 @@ def run_epoch(
             loss_gen += l_gen
             loss_recons += l_recons
     if not train:
-        x = tf.reshape(x[0], (-1, 128, 128, 1))
+        x = tf.reshape(x[0], (-1, opt.size, opt.size, 1))
         utrain.visualize(gen, model_wnet, x, epoch + 1, opt)
     return l_gen, l_recons
 
@@ -154,7 +154,7 @@ def run_epoch2(
     if not train:
         x = tf.convert_to_tensor(
             x[0].reshape(-1, opt.size, opt.size, 1), dtype=tf.float32
-        )  # error here
+        )
         utrain.visualize(gen, model_wnet, x, epoch + 1, opt)
     return l_gen, l_recons
 

@@ -18,10 +18,12 @@ def sparse_tensor_dense_tensordot(sp_a, b, axes):  # noqa (too complex)
         if a.get_shape().is_fully_defined() and isinstance(axes, (list, tuple)):
             shape_a = a.get_shape().as_list()
             axes = [i if i >= 0 else i + len(shape_a) for i in axes]
-            free = [i for i in range(len(shape_a)) if i not in axes]
+            free = [i for i in tf.range(len(shape_a)) if i not in axes]
             free_dims = [shape_a[i] for i in free]
-            prod_free = int(np.prod(np.array([shape_a[i] for i in free])))
-            prod_axes = int(np.prod(np.array([shape_a[i] for i in axes])))
+            # prod_free = int(np.prod(np.array([shape_a[i] for i in free])))
+            # prod_axes = int(np.prod(np.array([shape_a[i] for i in axes])))
+            prod_free = tf.math.reduce_prod(tf.constant([shape_a[i] for i in free]))
+            prod_axes = tf.math.reduce_prod(tf.constant([shape_a[i] for i in axes]))
             perm = list(axes) + free if flipped else free + list(axes)
             new_shape = [prod_axes, prod_free] if flipped else [prod_free, prod_axes]
             reshaped_a = tf.reshape(tf.transpose(a, perm), new_shape)
@@ -30,7 +32,7 @@ def sparse_tensor_dense_tensordot(sp_a, b, axes):  # noqa (too complex)
             if a.get_shape().ndims is not None and isinstance(axes, (list, tuple)):
                 shape_a = a.get_shape().as_list()
                 axes = [i if i >= 0 else i + len(shape_a) for i in axes]
-                free = [i for i in range(len(shape_a)) if i not in axes]
+                free = [i for i in tf.range(len(shape_a)) if i not in axes]
                 free_dims_static = [shape_a[i] for i in free]
             else:
                 free_dims_static = None
@@ -92,10 +94,12 @@ def sparse_tensor_dense_tensordot(sp_a, b, axes):  # noqa (too complex)
         if a.get_shape().is_fully_defined() and isinstance(axes, (list, tuple)):
             shape_a = a.get_shape().as_list()
             axes = [i if i >= 0 else i + len(shape_a) for i in axes]
-            free = [i for i in range(len(shape_a)) if i not in axes]
+            free = [i for i in tf.range(len(shape_a)) if i not in axes]
             free_dims = [shape_a[i] for i in free]
-            prod_free = int(np.prod(np.array([shape_a[i] for i in free])))
-            prod_axes = int(np.prod(np.array([shape_a[i] for i in axes])))
+            # prod_free = int(np.prod(np.array([shape_a[i] for i in free])))
+            # prod_axes = int(np.prod(np.array([shape_a[i] for i in axes])))
+            prod_free = tf.math.reduce_prod(tf.constant([shape_a[i] for i in free]))
+            prod_axes = tf.math.reduce_prod(tf.constant([shape_a[i] for i in axes]))
             perm = list(axes) + free if flipped else free + list(axes)
             new_shape = [prod_axes, prod_free] if flipped else [prod_free, prod_axes]
             reshaped_a = tf.sparse.reshape(tf.sparse.transpose(a, perm), new_shape)
@@ -104,7 +108,7 @@ def sparse_tensor_dense_tensordot(sp_a, b, axes):  # noqa (too complex)
             if a.get_shape().ndims is not None and isinstance(axes, (list, tuple)):
                 shape_a = a.get_shape().as_list()
                 axes = [i if i >= 0 else i + len(shape_a) for i in axes]
-                free = [i for i in range(len(shape_a)) if i not in axes]
+                free = [i for i in tf.range(len(shape_a)) if i not in axes]
                 free_dims_static = [shape_a[i] for i in free]
             else:
                 free_dims_static = None
@@ -143,14 +147,14 @@ def sparse_tensor_dense_tensordot(sp_a, b, axes):  # noqa (too complex)
                         "dimensions of tensor %s." % a
                     )
                 return (
-                    list(range(a_shape.ndims - axes, a_shape.ndims)),
-                    list(range(axes)),
+                    list(tf.range(a_shape.ndims - axes, a_shape.ndims)),
+                    list(tf.range(axes)),
                 )
             else:
                 rank = tf.rank(a)
                 return (
-                    range(rank - axes, rank, dtype=tf.int32),
-                    range(axes, dtype=tf.int32),
+                    tf.range(rank - axes, rank, dtype=tf.int32),
+                    tf.range(axes, dtype=tf.int32),
                 )
         elif isinstance(axes, (list, tuple)):
             if len(axes) != 2:
