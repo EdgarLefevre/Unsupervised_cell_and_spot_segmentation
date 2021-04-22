@@ -1,10 +1,6 @@
 #!/usr/bin/python3.8
 # -*- coding: utf-8 -*-
 
-import time
-
-import cupy as cp
-import matplotlib.pyplot as plt
 import numpy as np
 import progressbar
 import tensorflow as tf
@@ -88,6 +84,9 @@ class Dataset(keras.utils.Sequence):
         self.batch_size = batch_size
         self.img_size = img_size
         self.input_img_paths = input_img_paths
+        self.indeces, self.vals = ncuts.gaussian_neighbor((img_size, img_size))
+        self.weight_shapes = np.prod((img_size, img_size)).astype(np.int64)
+        self.weight_size = tf.constant([self.weight_shapes, self.weight_shapes])
 
     def __len__(self):
         return len(self.input_img_paths) // self.batch_size
@@ -113,65 +112,69 @@ class Dataset(keras.utils.Sequence):
                 / 255
             )
             x[j] = np.expand_dims(img, 2)
-        # w = get_weights(x)
-        start = time.time()
-        w = ncuts.process_weight_multi(x)
-        end = time.time()
-        print("process weight time: ", end - start)
+        w = ncuts.process_weight_multi(
+            x, self.indeces, self.vals, self.weight_shapes, self.weight_size
+        )
         return tf.constant(x), w
 
 
-def get_new_dataset(data_dir, img_size=128, batch_size=5):
-    list_ds = tf.data.Dataset.list_files(str(data_dir + "*"), shuffle=True)
-    image_count = tf.data.experimental.cardinality(list_ds).numpy()
-    list_ds = list_ds.shuffle(image_count, reshuffle_each_iteration=True)
-    val_size = int(image_count * 0.2)
-    train_ds = list_ds.skip(val_size)
-    val_ds = list_ds.take(val_size)
+# def get_new_dataset(data_dir, img_size=128, batch_size=5):
+#     list_ds = tf.data.Dataset.list_files(str(data_dir + "*"), shuffle=True)
+#     image_count = tf.data.experimental.cardinality(list_ds).numpy()
+#     list_ds = list_ds.shuffle(image_count, reshuffle_each_iteration=True)
+#     val_size = int(image_count * 0.2)
+#     train_ds = list_ds.skip(val_size)
+#     val_ds = list_ds.take(val_size)
+#
+#     indeces, vals = ncuts.gaussian_neighbor((img_size, img_size))
+#     weight_shapes = np.prod((img_size, img_size)).astype(np.int64)
+#     weight_size = tf.constant([weight_shapes, weight_shapes])
+#
+#     def decode_img(img):
+#         # convert the compressed string to a 3D uint8 tensor
+#         img = tf.image.decode_png(img, channels=1) / 255
+#         # resize the image to the desired size
+#         return tf.image.resize(img, [img_size, img_size])
+#
+#     def process_path(file_path):
+#         # load the raw data from the file as a string
+#         img = tf.io.read_file(file_path)
+#         img = decode_img(img)
+#         # start = time.time()
+#         wei = ncuts.process_weight(img, indeces, vals, weight_shapes, weight_size)
+#         # end = time.time()
+#         # print("process weight time: ", end - start)
+#         return img, wei
+#
+#     # Set `num_parallel_calls` so multiple images are loaded/processed in parallel.
+#     train_ds = train_ds.map(
+#         process_path, num_parallel_calls=tf.data.experimental.AUTOTUNE
+#     )
+#     val_ds = val_ds.map(
+#     process_path,
+#     num_parallel_calls=tf.data.experimental.AUTOTUNE)
+#
+#     def configure_for_performance(ds):
+#         ds = ds.cache()
+#         ds = ds.shuffle(buffer_size=1000)
+#         ds = ds.batch(batch_size)
+#         ds = ds.prefetch(buffer_size=tf.data.experimental.AUTOTUNE)
+#         return ds
+#
+#     train_ds = configure_for_performance(train_ds)
+#     val_ds = configure_for_performance(val_ds)
+#
+#     # image_batch, label_batch = next(iter(train_ds))
+#     # print(image_batch.shape)
+#
+#     return train_ds, val_ds
 
-    def decode_img(img):
-        # convert the compressed string to a 3D uint8 tensor
-        img = tf.image.decode_png(img, channels=1) / 255
-        # resize the image to the desired size
-        return tf.image.resize(img, [img_size, img_size])
 
-    def process_path(file_path):
-        # load the raw data from the file as a string
-        img = tf.io.read_file(file_path)
-        img = decode_img(img)
-        start = time.time()
-        wei = ncuts.process_weight(img)
-        end = time.time()
-        print("process weight time: ", end - start)
-        return img, wei
-
-    # Set `num_parallel_calls` so multiple images are loaded/processed in parallel.
-    train_ds = train_ds.map(
-        process_path, num_parallel_calls=tf.data.experimental.AUTOTUNE
-    )
-    val_ds = val_ds.map(process_path, num_parallel_calls=tf.data.experimental.AUTOTUNE)
-
-    def configure_for_performance(ds):
-        ds = ds.cache()
-        ds = ds.shuffle(buffer_size=1000)
-        ds = ds.batch(batch_size)
-        ds = ds.prefetch(buffer_size=tf.data.experimental.AUTOTUNE)
-        return ds
-
-    train_ds = configure_for_performance(train_ds)
-    val_ds = configure_for_performance(val_ds)
-
-    # image_batch, label_batch = next(iter(train_ds))
-    # print(image_batch.shape)
-
-    return train_ds, val_ds
-
-
-if __name__ == "__main__":
-    train, val = get_new_dataset("/home/edgar/Documents/Datasets/JB/good/")
-    for i in range(5):
-        x, w = next(iter(train))
-        print(x)
-        print(100 * "-")
-        print(w)
-        break
+# if __name__ == "__main__":
+#     train, val = get_new_dataset("/home/edgar/Documents/Datasets/JB/good/")
+#     for i in range(5):
+#         x, w = next(iter(train))
+#         print(x)
+#         print(100 * "-")
+#         print(w)
+#         break

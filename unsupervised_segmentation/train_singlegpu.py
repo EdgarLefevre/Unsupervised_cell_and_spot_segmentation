@@ -8,7 +8,6 @@ import sklearn.model_selection as sk
 import tensorflow as tf
 import tensorflow.keras as keras
 
-import unsupervised_segmentation.models.losses as losses
 import unsupervised_segmentation.models.wnet as wnet
 import unsupervised_segmentation.utils.data as data
 import unsupervised_segmentation.utils.ncuts as ncuts
@@ -47,7 +46,9 @@ def loss(gen, wnet, image, wei):
         loss_recons(keras.backend.flatten(image), keras.backend.flatten(output)),
         dtype=tf.double,
     )
-    # utils.print_gre("Train: Gen Loss: {:.3f} Reconstruction Loss: {:.3f}".format(gen_loss, wnet_loss))
+    # utils.print_gre(
+    # "Train: Gen Loss: {:.3f} Reconstruction Loss: {:.3f}".format(gen_loss, wnet_loss)
+    # )
     return gen_loss, wnet_loss
 
 
@@ -152,7 +153,7 @@ def run_epoch2(
             loss_recons += l_recons
     if not train:
         x = tf.convert_to_tensor(
-            x[0].reshape(-1, 128, 128, 1), dtype=tf.float32
+            x[0].reshape(-1, opt.size, opt.size, 1), dtype=tf.float32
         )  # error here
         utrain.visualize(gen, model_wnet, x, epoch + 1, opt)
     return l_gen, l_recons

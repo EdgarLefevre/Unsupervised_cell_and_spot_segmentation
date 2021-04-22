@@ -1,6 +1,5 @@
 import os
 
-import cupy as cp
 import numpy as np
 import tensorflow as tf
 
@@ -9,19 +8,20 @@ os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
 
 
 """
-ce code vient de : https://github.com/lwchen6309/unsupervised-image-segmentation-by-WNet-with-NormalizedCut/blob/master/
+ce code vient de :
+https://github.com/lwchen6309/unsupervised-image-segmentation-by-WNet-with-NormalizedCut/blob/master/
 """
 
 
-def sparse_tensor_dense_tensordot(sp_a, b, axes):
+def sparse_tensor_dense_tensordot(sp_a, b, axes):  # noqa (too complex)
     def _tensordot_reshape(a, axes, flipped=False):
         if a.get_shape().is_fully_defined() and isinstance(axes, (list, tuple)):
             shape_a = a.get_shape().as_list()
             axes = [i if i >= 0 else i + len(shape_a) for i in axes]
             free = [i for i in range(len(shape_a)) if i not in axes]
             free_dims = [shape_a[i] for i in free]
-            prod_free = int(cp.prod(cp.array([shape_a[i] for i in free])))
-            prod_axes = int(cp.prod(cp.array([shape_a[i] for i in axes])))
+            prod_free = int(np.prod(np.array([shape_a[i] for i in free])))
+            prod_axes = int(np.prod(np.array([shape_a[i] for i in axes])))
             perm = list(axes) + free if flipped else free + list(axes)
             new_shape = [prod_axes, prod_free] if flipped else [prod_free, prod_axes]
             reshaped_a = tf.reshape(tf.transpose(a, perm), new_shape)
@@ -94,8 +94,8 @@ def sparse_tensor_dense_tensordot(sp_a, b, axes):
             axes = [i if i >= 0 else i + len(shape_a) for i in axes]
             free = [i for i in range(len(shape_a)) if i not in axes]
             free_dims = [shape_a[i] for i in free]
-            prod_free = int(cp.prod(cp.array([shape_a[i] for i in free])))
-            prod_axes = int(cp.prod(cp.array([shape_a[i] for i in axes])))
+            prod_free = int(np.prod(np.array([shape_a[i] for i in free])))
+            prod_axes = int(np.prod(np.array([shape_a[i] for i in axes])))
             perm = list(axes) + free if flipped else free + list(axes)
             new_shape = [prod_axes, prod_free] if flipped else [prod_free, prod_axes]
             reshaped_a = tf.sparse.reshape(tf.sparse.transpose(a, perm), new_shape)
@@ -179,10 +179,6 @@ def sparse_tensor_dense_tensordot(sp_a, b, axes):
         sp_a, sp_a_axes
     )
     b_reshape, b_free_dims, b_free_dims_static = _tensordot_reshape(b, b_axes, True)
-    # print(100*'-')
-    # print(sp_a)
-    # print(b)
-    # print(100 * '-')
     ab_matmul = tf.sparse.sparse_dense_matmul(sp_a_reshape, b_reshape)
     if isinstance(sp_a_free_dims, list) and isinstance(b_free_dims, list):
         return tf.reshape(ab_matmul, sp_a_free_dims + b_free_dims)
@@ -197,10 +193,10 @@ def sparse_tensor_dense_tensordot(sp_a, b, axes):
 
 def circular_neighbor(index_centor, r, image_shape):
     xc, yc = index_centor
-    x = cp.arange(0, 2 * r + 1)
-    y = cp.arange(0, 2 * r + 1)
-    in_circle = ((x[cp.newaxis, :] - r) ** 2 + (y[:, cp.newaxis] - r) ** 2) < r ** 2
-    in_cir_x, in_cir_y = cp.nonzero(in_circle)
+    x = np.arange(0, 2 * r + 1)
+    y = np.arange(0, 2 * r + 1)
+    in_circle = ((x[np.newaxis, :] - r) ** 2 + (y[:, np.newaxis] - r) ** 2) < r ** 2
+    in_cir_x, in_cir_y = np.nonzero(in_circle)
     in_cir_x += xc - r
     in_cir_y += yc - r
     x_in_array = (0 <= in_cir_x) * (in_cir_x < image_shape[0])
@@ -211,19 +207,20 @@ def circular_neighbor(index_centor, r, image_shape):
 
 def gaussian_neighbor(image_shape, sigma_X=4, r=5):
     row_lst, col_lst, val_lst = [], [], []
+    # bottleneck (.5 sec / img) -> try to do list comprehension
     for i, (a, b) in enumerate(np.ndindex(*image_shape)):
         neighbor_x, neighbor_y = circular_neighbor((a, b), r, image_shape)
-        neighbor_value = cp.exp(
+        neighbor_value = np.exp(
             -((neighbor_x - a) ** 2 + (neighbor_y - b) ** 2) / sigma_X ** 2
         )
-        ravel_index = cp.ravel_multi_index([neighbor_x, neighbor_y], image_shape)
-        row_lst.append(cp.array([i] * len(neighbor_x)))
+        ravel_index = np.ravel_multi_index([neighbor_x, neighbor_y], image_shape)
+        row_lst.append(np.array([i] * len(neighbor_x)))
         col_lst.append(ravel_index)
         val_lst.append(neighbor_value)
-    rows = cp.hstack(row_lst)
-    cols = cp.hstack(col_lst)
-    indeces = cp.vstack([rows, cols]).T.astype(cp.int64)
-    vals = cp.hstack(val_lst).astype(cp.float)
+    rows = np.hstack(row_lst)
+    cols = np.hstack(col_lst)
+    indeces = np.vstack([rows, cols]).T.astype(np.int64)
+    vals = np.hstack(val_lst).astype(np.float)
     return indeces, vals
 
 
@@ -233,18 +230,17 @@ def brightness_weight(image, neighbor_filter, weight_shapes, sigma_I=0.05):
     cols = indeces[:, 1]
     image = tf.reshape(image, shape=(-1, weight_shapes))
     image = tf.transpose(image, [1, 0])
-    i_embedding = tf.nn.embedding_lookup(image, rows.get())
-    j_embedding = tf.nn.embedding_lookup(image, cols.get())
+    i_embedding = tf.nn.embedding_lookup(image, rows)
+    j_embedding = tf.nn.embedding_lookup(image, cols)
     Fi = tf.transpose(i_embedding, [1, 0])  # [B, #elements]
     Fj = tf.transpose(j_embedding, [1, 0])  # [B, #elements]
 
-    bright_weight = tf.exp(-((Fi - Fj) ** 2) / sigma_I ** 2) * vals.get()
+    bright_weight = tf.exp(-((Fi - Fj) ** 2) / sigma_I ** 2) * vals
     bright_weight = tf.transpose(bright_weight, [1, 0])  # [#elements, B]
     return bright_weight
 
 
 def convert_to_batchTensor(indeces, batch_values, dense_shape):
-    indeces = indeces.get()
     batch_size = tf.cast(tf.shape(batch_values)[1], tf.int64)
     num_element = tf.cast(tf.shape(indeces)[0], tf.int64)
     # Expand indeces, values
@@ -301,11 +297,11 @@ def soft_ncut(image, image_segment, image_weights):
 
     # Dis-association
     # [B0, H*W, H*W] @ [B1, K1, H*W] contract on [[2],[2]] = [B0, H*W, B1, K1]
-    if len(image_weights.shape) > 3:
-        image_weights = tf.sparse.reshape(
-            image_weights,
-            [image_weights.shape[0], image_weights.shape[2], image_weights.shape[3]],
-        )
+    # if len(image_weights.shape) > 3:
+    #     image_weights = tf.sparse.reshape(
+    #         image_weights,
+    #         [image_weights.shape[0], image_weights.shape[2], image_weights.shape[3]],
+    #     )
     W_Ak = sparse_tensor_dense_tensordot(image_weights, image_segment, axes=[[2], [2]])
     W_Ak = tf.transpose(W_Ak, [0, 2, 3, 1])  # [B0, B1, K1, H*W]
     W_Ak = sycronize_axes(W_Ak, [0, 1], tensor_dims=4)  # [B0=B1, K1, H*W]
@@ -334,22 +330,14 @@ def soft_ncut(image, image_segment, image_weights):
     return soft_ncut
 
 
-def process_weight(img):
-    img_size = img.shape[0]
-    indeces, vals = gaussian_neighbor((img_size, img_size))
-    weight_shapes = np.prod((img_size, img_size)).astype(np.int64)
-    weight_size = tf.constant([weight_shapes, weight_shapes])
+def process_weight(img, indeces, vals, weight_shapes, weight_size):
     b = brightness_weight(img, (indeces, vals), weight_shapes)
     return convert_to_batchTensor(indeces, b, weight_size)
 
 
-def process_weight_multi(images):
+def process_weight_multi(images, indeces, vals, weight_shapes, weight_size):
     res = []
     for img in images:
-        img_size = img.shape[0]
-        indeces, vals = gaussian_neighbor((img_size, img_size))
-        weight_shapes = np.prod((img_size, img_size)).astype(np.int64)
-        weight_size = tf.constant([weight_shapes, weight_shapes])
         b = brightness_weight(img, (indeces, vals), weight_shapes)
         res.append(convert_to_batchTensor(indeces, b, weight_size))
     return tf.sparse.concat(axis=0, sp_inputs=res)
@@ -375,12 +363,12 @@ if __name__ == "__main__":
     print("new")
     print(new_b)
     print(new_b.shape)
-    # print("\n" * 5)
-    #
-    # res = soft_ncut(np.ones((1, img_size, img_size, 1)),
-    #                 np.ones((1, img_size, img_size, 2)),
-    #                 new_b)
-    # print(res)
+    print("\n" * 5)
+
+    res = soft_ncut(
+        np.ones((1, img_size, img_size, 1)), np.ones((1, img_size, img_size, 2)), new_b
+    )
+    print(res)
     # img_size = 128
     # images = tf.zeros((5, img_size, img_size))
     # res = process_weight(images)
