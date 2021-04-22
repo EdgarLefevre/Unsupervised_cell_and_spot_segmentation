@@ -15,9 +15,9 @@ dependencies:
   - brotlipy=0.7.0=py38h1e0a361_1000
   - bzip2=1.0.8=h516909a_3
   - c-ares=1.16.1=h516909a_2
-  - ca-certificates=2020.6.20=hecda079_0
+  - ca-certificates=2020.12.5=ha878542_0
   - cachetools=4.1.1=py_0
-  - certifi=2020.6.20=py38h32f6830_0
+  - certifi=2020.12.5=py38h578d9bd_1
   - cffi=1.14.1=py38he30daa8_0
   - cfgv=3.2.0=py_0
   - chardet=3.0.4=py38h32f6830_1006
@@ -28,7 +28,7 @@ dependencies:
   - cudatoolkit=10.1.243=h6bb024c_0
   - cudnn=7.6.5=cuda10.1_0
   - cupti=10.1.168=0
-  - cupy=7.8.0=py38hd239d08_0
+  - cupy=8.1.0=py38h3809b76_0
   - curl=7.71.1=he644dc0_5
   - cycler=0.10.0=py_2
   - cytoolz=0.10.1=py38h516909a_0
@@ -95,7 +95,7 @@ dependencies:
   - olefile=0.46=py_0
   - openjpeg=2.3.1=h981e76c_3
   - openssh=8.3p1=h5957347_0
-  - openssl=1.1.1g=h516909a_1
+  - openssl=1.1.1h=h516909a_0
   - opt_einsum=3.3.0=py_0
   - pcre=8.44=he1b5a44_0
   - perl=5.26.2=h516909a_1006
