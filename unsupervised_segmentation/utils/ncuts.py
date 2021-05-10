@@ -7,6 +7,23 @@ os.environ["TF_XLA_FLAGS"] = "--tf_xla_cpu_global_jit"
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
 
 
+def tf_ravel_multi_index(multi_index, dims):
+    # multi_index is 2D (num dimensions x num indices), dims is 1D
+    # Does not check for out of bounds indices
+    # https://stackoverflow.com/questions/58398790/does-tensorflow-have-an-inverse-of-tf-unravel-index
+    strides = tf.math.cumprod(dims, exclusive=True, reverse=True)
+    return tf.reduce_sum(multi_index * tf.expand_dims(strides, 1), axis=0)
+
+
+def tf_nonzero(a):
+    zero = tf.constant(0, dtype=tf.int32)
+    a = tf.cast(a, dtype=tf.int32)
+    where = tf.not_equal(a, zero)
+    res = tf.where(where)
+    x, y = tf.split(res, num_or_size_splits=2, axis=1)
+    return tf.reshape(x, [-1]), tf.reshape(y, [-1])
+
+
 """
 ce code vient de :
 https://github.com/lwchen6309/unsupervised-image-segmentation-by-WNet-with-NormalizedCut/blob/master/
@@ -195,6 +212,28 @@ def sparse_tensor_dense_tensordot(sp_a, b, axes):  # noqa (too complex)
         return product
 
 
+def tf_circular_neighbor(index_centor, r, image_shape):
+    xc, yc = index_centor
+    x = tf.range(0, 2 * r + 1)
+    y = tf.range(0, 2 * r + 1)
+    in_circle = (
+        (tf.expand_dims(x, axis=0) - r) ** 2 + (tf.expand_dims(y, axis=-1) - r) ** 2
+    ) < r ** 2
+    in_cir_x, in_cir_y = tf_nonzero(in_circle)
+    in_cir_x += xc - r
+    in_cir_y += yc - r
+    x_in_array = tf.math.multiply(
+        tf.cast((0 <= in_cir_x), dtype=tf.int32),
+        tf.cast((in_cir_x < image_shape[0]), dtype=tf.int32),
+    )
+    y_in_array = tf.math.multiply(
+        tf.cast((0 <= in_cir_y), dtype=tf.int32),
+        tf.cast((in_cir_y < image_shape[1]), dtype=tf.int32),
+    )
+    in_array = tf.cast(x_in_array * y_in_array, dtype=tf.bool)
+    return in_cir_x[in_array], in_cir_y[in_array]
+
+
 def circular_neighbor(index_centor, r, image_shape):
     xc, yc = index_centor
     x = np.arange(0, 2 * r + 1)
@@ -207,6 +246,25 @@ def circular_neighbor(index_centor, r, image_shape):
     y_in_array = (0 <= in_cir_y) * (in_cir_y < image_shape[1])
     in_array = x_in_array * y_in_array
     return in_cir_x[in_array], in_cir_y[in_array]
+
+
+def tf_gaussian_neighbor(image_shape, sigma_X=4, r=5):
+    row_lst, col_lst, val_lst = [], [], []
+    # bottleneck (.5 sec / img) -> try to do list comprehension
+    for i, (a, b) in enumerate(np.ndindex(*image_shape)):
+        neighbor_x, neighbor_y = tf_circular_neighbor((a, b), r, image_shape)
+        neighbor_value = tf.exp(
+            -((neighbor_x - a) ** 2 + (neighbor_y - b) ** 2) / sigma_X ** 2
+        )
+        ravel_index = np.ravel_multi_index([neighbor_x, neighbor_y], image_shape)
+        row_lst.append(tf.constant([i] * len(neighbor_x)))
+        col_lst.append(ravel_index)
+        val_lst.append(neighbor_value)
+    rows = np.hstack(row_lst)
+    cols = np.hstack(col_lst)
+    indeces = np.vstack([rows, cols]).T.astype(np.int64)
+    vals = np.hstack(val_lst).astype(np.float)
+    return indeces, vals
 
 
 def gaussian_neighbor(image_shape, sigma_X=4, r=5):
@@ -344,36 +402,7 @@ def process_weight_multi(images, indeces, vals, weight_shapes, weight_size):
     for img in images:
         b = brightness_weight(img, (indeces, vals), weight_shapes)
         res.append(convert_to_batchTensor(indeces, b, weight_size))
-    return tf.sparse.concat(axis=0, sp_inputs=res)
-
-
-if __name__ == "__main__":
-    img_size = 128
-    image = tf.zeros((img_size, img_size))
-    indeces, vals = gaussian_neighbor((img_size, img_size))
-
-    weight_shapes = np.prod((img_size, img_size)).astype(np.int64)
-    weight_size = tf.constant([weight_shapes, weight_shapes])
-    b = brightness_weight(image, (indeces, vals), weight_shapes)
-
-    print(100 * "-")
-    print("bright weigths")
-    print(b)
-    print(b.shape)
-
-    new_b = convert_to_batchTensor(indeces, b, weight_size)
-
-    print(100 * "-")
-    print("new")
-    print(new_b)
-    print(new_b.shape)
-    print("\n" * 5)
-
-    res = soft_ncut(
-        np.ones((1, img_size, img_size, 1)), np.ones((1, img_size, img_size, 2)), new_b
-    )
-    print(res)
-    # img_size = 128
-    # images = tf.zeros((5, img_size, img_size))
-    # res = process_weight(images)
-    # print(res)
+    out = tf.sparse.concat(
+        axis=0, sp_inputs=res
+    )  # this operation is very long (env 1sec)
+    return out

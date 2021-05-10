@@ -17,6 +17,9 @@ import unsupervised_segmentation.utils.utils_train as utrain
 # os.environ["CUDA_VISIBLE_DEVICES"] = "5"
 os.environ["TF_XLA_FLAGS"] = "--tf_xla_cpu_global_jit"
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
+
+
+print("TensorFlow version: ", tf.__version__)
 # loglevel : 0 all printed, 1 I not printed, 2 I and W not printed, 3 nothing printed
 
 
@@ -160,7 +163,7 @@ def run_epoch2(
 
 
 def train():
-    img_path_list = utils.list_files_path(opt.img_path)
+    img_path_list = utils.list_files_path(opt.img_path)[:200]
     # not good if we need to do metrics
     img_train, img_test = sk.train_test_split(
         img_path_list, test_size=0.2, random_state=42
