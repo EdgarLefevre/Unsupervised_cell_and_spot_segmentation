@@ -117,14 +117,14 @@ def unet(input_size, enc, name):
     d1, c1 = block_down(input, filters=filters)
     d2, c2 = block_down(d1, filters=filters * 2, separable=True)
     d3, c3 = block_down(d2, filters=filters * 4, separable=True)
-    d4, c4 = block_down(d3, filters=filters * 8, separable=True)
+    # d4, c4 = block_down(d3, filters=filters * 8, separable=True)
 
     # bridge
-    b = bridge(d4, filters=filters * 16)
+    b = bridge(d3, filters=filters * 8)
 
     # up
-    u4 = block_up(input=b, filters=filters * 8, conc=[c4], separable=True)
-    u3 = block_up(input=u4, filters=filters * 4, conc=[c3], separable=True)
+    # u4 = block_up(input=b, filters=filters * 8, conc=[c4], separable=True)
+    u3 = block_up(input=b, filters=filters * 4, conc=[c3], separable=True)
     u2 = block_up(input=u3, filters=filters * 2, conc=[c2], separable=True)
     u1 = block_up(input=u2, filters=filters, conc=[c1])
     if enc:

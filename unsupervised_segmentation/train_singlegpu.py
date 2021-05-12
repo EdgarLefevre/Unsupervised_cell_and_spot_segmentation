@@ -34,8 +34,8 @@ widgets = [
     ") ",
 ]
 
-PATH_SAVE_gen = "gen.h5"
-PATH_SAVE_wnet = "wnet.h5"
+PATH_SAVE_gen = "gen"
+PATH_SAVE_wnet = "wnet"
 BEST_LOSS = math.inf
 
 
@@ -163,7 +163,7 @@ def run_epoch2(
 
 
 def train():
-    img_path_list = utils.list_files_path(opt.img_path)[:200]
+    img_path_list = utils.list_files_path(opt.img_path)[:1000]
     # not good if we need to do metrics
     img_train, img_test = sk.train_test_split(
         img_path_list, test_size=0.2, random_state=42
