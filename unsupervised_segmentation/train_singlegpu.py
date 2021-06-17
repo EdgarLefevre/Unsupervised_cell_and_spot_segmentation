@@ -14,7 +14,7 @@ import unsupervised_segmentation.utils.ncuts as ncuts
 import unsupervised_segmentation.utils.utils as utils
 import unsupervised_segmentation.utils.utils_train as utrain
 
-# os.environ["CUDA_VISIBLE_DEVICES"] = "5"
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 os.environ["TF_XLA_FLAGS"] = "--tf_xla_cpu_global_jit"
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
 
@@ -34,8 +34,8 @@ widgets = [
     ") ",
 ]
 
-PATH_SAVE_gen = "gen"
-PATH_SAVE_wnet = "wnet"
+PATH_SAVE_gen = "weights/gen"
+PATH_SAVE_wnet = "weights/wnet"
 BEST_LOSS = math.inf
 
 
@@ -43,7 +43,7 @@ def loss(gen, wnet, image, wei):
     loss_ncut = ncuts.soft_ncut
     loss_recons = keras.metrics.mse
     pred = gen(image)
-    gen_loss = tf.reduce_mean(loss_ncut(image, pred, wei))
+    gen_loss = tf.reduce_mean(tf.abs(loss_ncut(image, pred, wei)))
     output = wnet(image)
     wnet_loss = tf.cast(
         loss_recons(keras.backend.flatten(image), keras.backend.flatten(output)),
@@ -163,7 +163,7 @@ def run_epoch2(
 
 
 def train():
-    img_path_list = utils.list_files_path(opt.img_path)[:1000]
+    img_path_list = utils.list_files_path(opt.img_path)
     # not good if we need to do metrics
     img_train, img_test = sk.train_test_split(
         img_path_list, test_size=0.2, random_state=42
