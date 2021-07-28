@@ -14,7 +14,7 @@ import unsupervised_segmentation.utils.ncuts as ncuts
 import unsupervised_segmentation.utils.utils as utils
 import unsupervised_segmentation.utils.utils_train as utrain
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+os.environ["CUDA_VISIBLE_DEVICES"] = "7"
 os.environ["TF_XLA_FLAGS"] = "--tf_xla_cpu_global_jit"
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
 

@@ -2,7 +2,70 @@
 # -*- coding: utf-8 -*-
 
 import tensorflow.keras as keras
+import tensorflow.keras.backend as K
 import tensorflow.keras.layers as layers
+
+
+def gating_signal(input, out_size, batch_norm=False):
+    """
+    resize the down layer feature map into the same dimension as the up layer feature map
+    using 1x1 conv
+    :param input: down-dim feature map
+    :param out_size: output channel number
+    :return: the gating feature map with the same dimension of the up layer feature map
+    """
+    x = layers.Conv2D(out_size, (1, 1), padding="same")(input)
+    if batch_norm:
+        x = layers.BatchNormalization()(x)
+    x = layers.Activation("relu")(x)
+    return x
+
+
+def expend_as(tensor, rep):
+    return layers.Lambda(
+        lambda x, repnum: K.repeat_elements(x, repnum, axis=3),
+        arguments={"repnum": rep},
+    )(tensor)
+
+
+def attention_block(x, gating, inter_shape):
+    """
+    From https://towardsdatascience.com/a-detailed-explanation-of-the-attention-u-net-b371a5590831 ;
+    did some adaptation, not sure for now if it's working
+    """
+    shape_x = x.shape  # 16,16,64
+    shape_g = gating.shape  # 8,8,32
+
+    theta_x = layers.Conv2D(inter_shape, (2, 2), strides=(1, 1), padding="same")(
+        x
+    )  # 16,16,32
+    shape_theta_x = theta_x.shape
+    phi_g = layers.Conv2D(inter_shape, (1, 1), padding="same")(gating)  # 8,8,32
+    upsample_g = layers.Conv2DTranspose(
+        inter_shape,
+        (3, 3),
+        strides=(1, 1),
+        # strides=(2, 2),
+        padding="same",
+    )(
+        phi_g
+    )  # 16,16,32
+
+    concat_xg = layers.add([upsample_g, theta_x])  # 16,16,64
+    act_xg = layers.Activation("relu")(concat_xg)
+    psi = layers.Conv2D(1, (1, 1), padding="same")(act_xg)  # 16,16,1
+    sigmoid_xg = layers.Activation("sigmoid")(psi)
+    shape_sigmoid = sigmoid_xg.shape  # 16,16,1
+    # upsample_psi = layers.UpSampling2D(size=(2, 2))(sigmoid_xg)  # 32,32,1
+    upsample_psi = expend_as(sigmoid_xg, shape_x[3])  # 16,16,64
+
+    y = layers.multiply([upsample_psi, x])  # 16,16,64
+
+    result = layers.Conv2DTranspose(shape_x[3], (2, 2), strides=(2, 2), padding="same")(
+        y
+    )
+    result_bn = layers.BatchNormalization()(result)
+    return result_bn
 
 
 def block_down(
@@ -74,7 +137,9 @@ def block_up(
         padding="same",
     )(input)
     for i in range(len(conc)):
-        x = layers.concatenate([x, conc[i]])
+        gat = gating_signal(input, filters)
+        att = attention_block(input, gat, filters)
+        x = layers.concatenate([x, conc[i], att])
     if separable:
         x = layers.SeparableConv2D(
             filters,
@@ -150,3 +215,6 @@ def wnet(input_shape):
     output = udec(x)
     model = keras.Model(inputs=input, outputs=output, name="wnet")
     return uenc, model
+
+
+# todo: rename things

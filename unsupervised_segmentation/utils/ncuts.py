@@ -286,7 +286,7 @@ def gaussian_neighbor(image_shape, sigma_X=4, r=5):
     return indeces, vals
 
 
-def brightness_weight(image, neighbor_filter, weight_shapes, sigma_I=0.05):
+def brightness_weight(image, neighbor_filter, weight_shapes, sigma_I=0.01):
     indeces, vals = neighbor_filter
     rows = indeces[:, 0]
     cols = indeces[:, 1]
@@ -305,7 +305,7 @@ def brightness_weight(image, neighbor_filter, weight_shapes, sigma_I=0.05):
 def convert_to_batchTensor(indeces, batch_values, dense_shape):
     batch_size = tf.cast(tf.shape(batch_values)[1], tf.int64)
     num_element = tf.cast(tf.shape(indeces)[0], tf.int64)
-    # Expand indeces, values
+    # Expand indices, values
     tile_indeces = tf.tile(indeces, tf.stack([batch_size, 1]))
     tile_batch = tf.range(batch_size, dtype=tf.int64)
     tile_batch = tf.tile(tf.expand_dims(tile_batch, axis=1), tf.stack([1, num_element]))
