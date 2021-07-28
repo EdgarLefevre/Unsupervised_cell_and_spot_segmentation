@@ -16,12 +16,11 @@ import unsupervised_segmentation.utils.ncuts as ncuts
 import unsupervised_segmentation.utils.utils as utils
 import unsupervised_segmentation.utils.utils_train as utrain
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+# os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 os.environ["TF_XLA_FLAGS"] = "--tf_xla_cpu_global_jit"
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
 
 print("TensorFlow version: ", tf.__version__)
-
 
 
 # widget list for the progress bar
@@ -63,10 +62,12 @@ def loss(gen, wnet, image, wei):
     #     loss_recons(keras.backend.flatten(image), keras.backend.flatten(output)),
     #     dtype=tf.double,
     # )
-    wnet_loss = tf.reduce_mean(tf.cast(
-        loss_recons(image, output),
-        dtype=tf.double,
-    ))
+    wnet_loss = tf.reduce_mean(
+        tf.cast(
+            loss_recons(image, output),
+            dtype=tf.double,
+        )
+    )
     # utils.print_gre(
     # "\nTrain: Gen Loss: {:.3f} Reconstruction Loss: {:.3f}".format(gen_loss, wnet_loss)
     # )
@@ -94,13 +95,13 @@ def save(gen, _wnet, loss, path_gen, path_wnet):
 
 
 def _step(
-        gen,
-        model_wnet,
-        x,
-        w,
-        optimizer_gen,
-        optimizer_wnet,
-        train=True,
+    gen,
+    model_wnet,
+    x,
+    w,
+    optimizer_gen,
+    optimizer_wnet,
+    train=True,
 ):
     gen_loss, wnet_loss, gen_grads, wnet_grads = _grad(
         gen,
@@ -115,13 +116,13 @@ def _step(
 
 
 def run_epoch(
-        dataset,
-        gen,
-        model_wnet,
-        o_gen,
-        o_wnet,
-        epoch,
-        train=True,
+    dataset,
+    gen,
+    model_wnet,
+    o_gen,
+    o_wnet,
+    epoch,
+    train=True,
 ):
     loss_gen = 0
     loss_recons = 0
