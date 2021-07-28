@@ -68,6 +68,22 @@ def attention_block(x, gating, inter_shape):
     return result_bn
 
 
+def attention_block2(x, gating, inter_shape):
+    """
+    From https://towardsdatascience.com/a-detailed-explanation-of-the-attention-u-net-b371a5590831 ;
+    did some adaptation, not sure for now if it's working
+    """
+    theta_x = layers.Conv2D(inter_shape, (2, 2), strides=(2, 2), padding="same")(x)  # 8,8,64
+    phi_g = layers.Conv2D(inter_shape, (1, 1), padding="same")(gating)  # 8,8,64
+    concat_xg = layers.add([phi_g, theta_x])  # 8,8,64
+    act_xg = layers.Activation("relu")(concat_xg)
+    psi = layers.Conv2D(1, (1, 1), padding="same")(act_xg)  # 8,8,1
+    sigmoid_xg = layers.Activation("sigmoid")(psi)
+    upsample_psi = layers.UpSampling2D(size=(2, 2))(sigmoid_xg)  # 16,16,1
+    y = layers.multiply([upsample_psi, x])  # 16,16,64
+    return y
+
+
 def block_down(
     inputs, filters, drop=0.3, w_decay=0.0001, kernel_size=3, separable=False
 ):
