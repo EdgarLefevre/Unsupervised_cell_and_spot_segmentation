@@ -163,7 +163,11 @@ def block_up(
         print(100 * "-")
         # att = attention_block(input, gat, filters)
         att = attention_block2(conc[i], gat, filters)
+<<<<<<< HEAD
         x = layers.concatenate([x, att])
+=======
+        x = layers.concatenate([x, conc[i], att])
+>>>>>>> bbbf7fe9f0a0d93f46380591fcbf2ed6341df405
     if separable:
         x = layers.SeparableConv2D(
             filters,
